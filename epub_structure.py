@@ -29,6 +29,24 @@ NS_NCX = 'http://www.daisy.org/z3986/2005/ncx/'
 NS_EPUB = 'http://www.idpf.org/2007/ops'
 
 
+def _find_element(root, local_name):
+    """Find an element by local name, trying namespaced then unnamespaced."""
+    # Try with OPF namespace first
+    el = root.find(f'.//{{{NS_OPF}}}{local_name}')
+    if el is not None:
+        return el
+    # Try without namespace (some EPUBs omit it)
+    el = root.find(f'.//{local_name}')
+    if el is not None:
+        return el
+    # Try wildcard namespace match
+    for child in root.iter():
+        tag = child.tag if isinstance(child.tag, str) else ''
+        if tag.endswith('}' + local_name) or tag == local_name:
+            return child
+    return None
+
+
 def build_rename_map(epub_dir: str, processed_images: dict) -> dict:
     """
     Build a mapping of old image paths to new paths.
@@ -49,7 +67,7 @@ def update_opf(opf_path: str, rename_map: dict) -> None:
     tree = etree.parse(opf_path)
     root = tree.getroot()
 
-    manifest = root.find(f'.//{{{NS_OPF}}}manifest')
+    manifest = _find_element(root, 'manifest')
     if manifest is None:
         return
 
@@ -82,7 +100,7 @@ def update_opf_remove_fonts(opf_path: str, font_files: list[str]) -> int:
     tree = etree.parse(opf_path)
     root = tree.getroot()
 
-    manifest = root.find(f'.//{{{NS_OPF}}}manifest')
+    manifest = _find_element(root, 'manifest')
     if manifest is None:
         return 0
 
@@ -110,7 +128,7 @@ def add_image_to_opf(opf_path: str, image_href: str, image_id: str) -> None:
     tree = etree.parse(opf_path)
     root = tree.getroot()
 
-    manifest = root.find(f'.//{{{NS_OPF}}}manifest')
+    manifest = _find_element(root, 'manifest')
     if manifest is None:
         return
 
@@ -227,8 +245,8 @@ def fix_svg_covers(epub_dir: str, opf_path: str) -> int:
     fixed = 0
 
     # Find spine items
-    spine = root.find(f'.//{{{NS_OPF}}}spine')
-    manifest = root.find(f'.//{{{NS_OPF}}}manifest')
+    spine = _find_element(root, 'spine')
+    manifest = _find_element(root, 'manifest')
     if spine is None or manifest is None:
         return 0
 
@@ -317,8 +335,8 @@ def fix_toc(epub_dir: str, opf_path: str) -> tuple[bool, str]:
     is_epub3 = version.startswith('3')
 
     # Check for existing NCX
-    manifest = root.find(f'.//{{{NS_OPF}}}manifest')
-    spine = root.find(f'.//{{{NS_OPF}}}spine')
+    manifest = _find_element(root, 'manifest')
+    spine = _find_element(root, 'spine')
     if manifest is None or spine is None:
         return False, "No manifest or spine found"
 
@@ -507,7 +525,7 @@ def find_content_files(epub_dir: str, opf_path: str) -> dict:
         'other': [],
     }
 
-    manifest = root.find(f'.//{{{NS_OPF}}}manifest')
+    manifest = _find_element(root, 'manifest')
     if manifest is None:
         return files
 

@@ -29,6 +29,41 @@ STORE_META_NAMES = {
 STORE_META_PREFIXES = ('calibre:', 'ibooks:', 'amazon:', 'kindle:')
 
 
+def _find_dc(root, local_name, nsmap):
+    """Find a Dublin Core element, trying multiple namespace strategies."""
+    ns_dc = 'http://purl.org/dc/elements/1.1/'
+    # Try with nsmap
+    el = root.find(f'.//dc:{local_name}', nsmap)
+    if el is not None:
+        return el
+    # Try direct namespace
+    el = root.find(f'.//{{{ns_dc}}}{local_name}')
+    if el is not None:
+        return el
+    # Wildcard: iterate and match local name
+    for child in root.iter():
+        tag = child.tag if isinstance(child.tag, str) else ''
+        if tag.endswith('}' + local_name) or tag == local_name:
+            return child
+    return None
+
+
+def _find_manifest(root):
+    """Find manifest element regardless of namespace."""
+    ns = 'http://www.idpf.org/2007/opf'
+    el = root.find(f'.//{{{ns}}}manifest')
+    if el is not None:
+        return el
+    el = root.find('.//manifest')
+    if el is not None:
+        return el
+    for child in root.iter():
+        tag = child.tag if isinstance(child.tag, str) else ''
+        if tag.endswith('}manifest') or tag == 'manifest':
+            return child
+    return None
+
+
 def extract_metadata(opf_tree: etree._ElementTree) -> dict:
     """
     Extract metadata from OPF document.
@@ -48,22 +83,22 @@ def extract_metadata(opf_tree: etree._ElementTree) -> dict:
     }
 
     # Title
-    title_el = root.find('.//dc:title', nsmap)
+    title_el = _find_dc(root, 'title', nsmap)
     if title_el is not None and title_el.text:
         metadata['title'] = title_el.text.strip()
 
     # Author
-    creator_el = root.find('.//dc:creator', nsmap)
+    creator_el = _find_dc(root, 'creator', nsmap)
     if creator_el is not None and creator_el.text:
         metadata['author'] = creator_el.text.strip()
 
     # Language
-    lang_el = root.find('.//dc:language', nsmap)
+    lang_el = _find_dc(root, 'language', nsmap)
     if lang_el is not None and lang_el.text:
         metadata['language'] = lang_el.text.strip()
 
     # Series - check calibre metadata and EPUB 3 meta
-    for meta in root.iter('{http://www.idpf.org/2007/opf}meta'):
+    for meta in _iter_meta(root):
         name = meta.get('name', '')
         content = meta.get('content', '')
         prop = meta.get('property', '')
@@ -82,9 +117,7 @@ def extract_metadata(opf_tree: etree._ElementTree) -> dict:
     if cover_id:
         metadata['cover_id'] = cover_id
         # Resolve cover href from manifest
-        manifest = root.find('.//opf:manifest', nsmap)
-        if manifest is None:
-            manifest = root.find('.//{http://www.idpf.org/2007/opf}manifest')
+        manifest = _find_manifest(root)
         if manifest is not None:
             for item in manifest:
                 if item.get('id') == cover_id:
@@ -94,12 +127,40 @@ def extract_metadata(opf_tree: etree._ElementTree) -> dict:
     return metadata
 
 
+def _find_metadata(root):
+    """Find metadata element regardless of namespace."""
+    ns = 'http://www.idpf.org/2007/opf'
+    el = root.find(f'.//{{{ns}}}metadata')
+    if el is not None:
+        return el
+    el = root.find('.//metadata')
+    if el is not None:
+        return el
+    for child in root.iter():
+        tag = child.tag if isinstance(child.tag, str) else ''
+        if tag.endswith('}metadata') or tag == 'metadata':
+            return child
+    return None
+
+
+def _iter_meta(root):
+    """Iterate over all <meta> elements regardless of namespace."""
+    ns = 'http://www.idpf.org/2007/opf'
+    found = list(root.iter(f'{{{ns}}}meta'))
+    if found:
+        yield from found
+        return
+    # Fallback: iterate all and match local name
+    for child in root.iter():
+        tag = child.tag if isinstance(child.tag, str) else ''
+        if tag.endswith('}meta') or tag == 'meta':
+            yield child
+
+
 def _find_cover_id(root: etree._Element, nsmap: dict) -> str:
     """Find cover image ID using multiple detection strategies."""
     # Strategy 1: EPUB 3 properties="cover-image"
-    manifest = root.find('.//opf:manifest', nsmap)
-    if manifest is None:
-        manifest = root.find('.//{http://www.idpf.org/2007/opf}manifest')
+    manifest = _find_manifest(root)
     if manifest is not None:
         for item in manifest:
             props = item.get('properties', '')
@@ -107,7 +168,7 @@ def _find_cover_id(root: etree._Element, nsmap: dict) -> str:
                 return item.get('id', '')
 
     # Strategy 2: EPUB 2 <meta name="cover" content="id">
-    for meta in root.iter('{http://www.idpf.org/2007/opf}meta'):
+    for meta in _iter_meta(root):
         if meta.get('name') == 'cover':
             return meta.get('content', '')
 
@@ -141,14 +202,15 @@ def update_metadata(opf_tree: etree._ElementTree, edits: dict) -> None:
     """
     root = opf_tree.getroot()
     ns_dc = 'http://purl.org/dc/elements/1.1/'
-    ns_opf = 'http://www.idpf.org/2007/opf'
 
-    metadata_el = root.find('.//{http://www.idpf.org/2007/opf}metadata')
+    metadata_el = _find_metadata(root)
     if metadata_el is None:
         return
 
+    nsmap = _build_nsmap(root)
+
     if 'title' in edits and edits['title']:
-        title_el = root.find(f'.//{{{ns_dc}}}title')
+        title_el = _find_dc(root, 'title', nsmap)
         if title_el is not None:
             title_el.text = edits['title']
         else:
@@ -156,7 +218,7 @@ def update_metadata(opf_tree: etree._ElementTree, edits: dict) -> None:
             el.text = edits['title']
 
     if 'author' in edits and edits['author']:
-        creator_el = root.find(f'.//{{{ns_dc}}}creator')
+        creator_el = _find_dc(root, 'creator', nsmap)
         if creator_el is not None:
             creator_el.text = edits['author']
         else:
@@ -164,7 +226,7 @@ def update_metadata(opf_tree: etree._ElementTree, edits: dict) -> None:
             el.text = edits['author']
 
     if 'language' in edits and edits['language']:
-        lang_el = root.find(f'.//{{{ns_dc}}}language')
+        lang_el = _find_dc(root, 'language', nsmap)
         if lang_el is not None:
             lang_el.text = edits['language']
         else:
@@ -178,15 +240,14 @@ def strip_store_metadata(opf_tree: etree._ElementTree) -> int:
     Returns count of removed elements.
     """
     root = opf_tree.getroot()
-    ns_opf = 'http://www.idpf.org/2007/opf'
     removed = 0
 
-    metadata_el = root.find(f'.//{{{ns_opf}}}metadata')
+    metadata_el = _find_metadata(root)
     if metadata_el is None:
         return 0
 
     to_remove = []
-    for meta in metadata_el.iter(f'{{{ns_opf}}}meta'):
+    for meta in _iter_meta(metadata_el):
         name = meta.get('name', '')
         prop = meta.get('property', '')
 

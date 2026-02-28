@@ -206,6 +206,13 @@ def find_opf_path(epub_dir: str) -> str:
     if rootfile is None:
         # Try without namespace
         rootfile = root.find('.//{urn:oasis:names:tc:opendocument:xmlns:container}rootfile')
+    if rootfile is None:
+        # Wildcard fallback
+        for child in root.iter():
+            tag = child.tag if isinstance(child.tag, str) else ''
+            if tag.endswith('}rootfile') or tag == 'rootfile':
+                rootfile = child
+                break
 
     if rootfile is None:
         raise FileNotFoundError("No rootfile found in container.xml")
