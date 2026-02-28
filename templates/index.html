@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X4 EPUB Optimizer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>X4 EPUB Optimizer</h1>
+            <p class="subtitle">Optimize any EPUB for the XTelnk X4 e-reader</p>
+        </header>
+
+        <!-- Upload Zone -->
+        <div id="upload-zone" class="upload-zone">
+            <div class="upload-content">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <p>Drag &amp; drop EPUB files here</p>
+                <p class="upload-hint">or click to browse (max 100MB per file)</p>
+            </div>
+            <input type="file" id="file-input" accept=".epub" multiple hidden>
+        </div>
+
+        <!-- File List (after upload) -->
+        <div id="file-list" class="file-list" hidden></div>
+
+        <!-- Options Panel -->
+        <div id="options-panel" class="options-panel" hidden>
+            <h2>Options</h2>
+
+            <div class="preset-bar">
+                <button class="preset-btn" data-preset="quick">Quick</button>
+                <button class="preset-btn active" data-preset="full">Full</button>
+                <button class="preset-btn" data-preset="custom">Custom</button>
+            </div>
+
+            <div class="options-grid">
+                <label class="option">
+                    <input type="checkbox" id="opt-grayscale" checked>
+                    <span>Grayscale</span>
+                    <small>Convert images to grayscale for e-ink</small>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-contrast" checked>
+                    <span>Contrast Boost</span>
+                    <small>Slightly increase contrast for e-ink readability</small>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-fonts" checked>
+                    <span>Remove Fonts</span>
+                    <small>Strip embedded fonts (e-ink doesn't benefit)</small>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-css" checked>
+                    <span>Remove Unused CSS</span>
+                    <small>Strip CSS rules not used in the content</small>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-cover" checked>
+                    <span>Generate Missing Cover</span>
+                    <small>Create a cover if the EPUB doesn't have one</small>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-metadata" checked>
+                    <span>Clean Metadata</span>
+                    <small>Strip store-specific and calibre metadata</small>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-lightnovel">
+                    <span>Light Novel Mode</span>
+                    <small>Rotate/split landscape images for vertical viewing</small>
+                </label>
+            </div>
+
+            <div class="quality-control">
+                <label>JPEG Quality</label>
+                <div class="quality-presets">
+                    <button class="quality-btn" data-quality="40">Low</button>
+                    <button class="quality-btn" data-quality="60">Medium</button>
+                    <button class="quality-btn active" data-quality="70">High</button>
+                    <button class="quality-btn" data-quality="85">Max</button>
+                </div>
+                <input type="range" id="opt-quality" min="20" max="95" value="70">
+                <span id="quality-value">70%</span>
+            </div>
+
+            <button id="process-btn" class="process-btn">Optimize EPUBs</button>
+        </div>
+
+        <!-- Processing Progress -->
+        <div id="progress-section" class="progress-section" hidden>
+            <h2>Processing</h2>
+            <div id="progress-items"></div>
+        </div>
+
+        <!-- Results -->
+        <div id="results-section" class="results-section" hidden>
+            <h2>Results</h2>
+            <div id="results-items"></div>
+            <button id="download-all-btn" class="download-all-btn" hidden>Download All (ZIP)</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

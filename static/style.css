@@ -1,0 +1,501 @@
+/* X4 EPUB Optimizer - Clean, minimal styling */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111;
+}
+
+.subtitle {
+    color: #666;
+    font-size: 15px;
+    margin-top: 4px;
+}
+
+h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #333;
+}
+
+/* Upload Zone */
+.upload-zone {
+    border: 2px dashed #ccc;
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: #fff;
+}
+
+.upload-zone:hover,
+.upload-zone.dragover {
+    border-color: #4a90d9;
+    background: #f0f6ff;
+}
+
+.upload-icon {
+    width: 48px;
+    height: 48px;
+    color: #999;
+    margin-bottom: 12px;
+}
+
+.upload-zone p {
+    color: #555;
+    font-size: 16px;
+}
+
+.upload-hint {
+    color: #999 !important;
+    font-size: 13px !important;
+    margin-top: 4px;
+}
+
+/* File List */
+.file-list {
+    margin-top: 20px;
+}
+
+.file-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.file-card.error {
+    border-color: #e74c3c;
+    background: #fdf2f2;
+}
+
+.file-cover {
+    width: 60px;
+    height: 80px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.file-cover .no-cover {
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+}
+
+.file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    font-weight: 600;
+    font-size: 14px;
+    word-break: break-word;
+}
+
+.file-meta {
+    font-size: 13px;
+    color: #666;
+    margin-top: 2px;
+}
+
+.file-error {
+    color: #e74c3c;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.file-edit {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.file-edit input {
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    flex: 1;
+    min-width: 120px;
+}
+
+.file-edit input:focus {
+    outline: none;
+    border-color: #4a90d9;
+}
+
+.file-remove {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.file-remove:hover {
+    color: #e74c3c;
+}
+
+/* Options Panel */
+.options-panel {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.preset-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.preset-btn {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f8f8f8;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.preset-btn:hover {
+    background: #eee;
+}
+
+.preset-btn.active {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+}
+
+.options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 14px;
+}
+
+.option:hover {
+    background: #f8f8f8;
+}
+
+.option input[type="checkbox"] {
+    accent-color: #1a1a1a;
+}
+
+.option small {
+    width: 100%;
+    font-size: 11px;
+    color: #999;
+    margin-top: -2px;
+}
+
+.quality-control {
+    margin-bottom: 20px;
+}
+
+.quality-control label {
+    font-size: 14px;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.quality-presets {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.quality-btn {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f8f8f8;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+
+.quality-btn:hover {
+    background: #eee;
+}
+
+.quality-btn.active {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+}
+
+.quality-control input[type="range"] {
+    width: calc(100% - 50px);
+    vertical-align: middle;
+    accent-color: #1a1a1a;
+}
+
+#quality-value {
+    font-size: 14px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.process-btn {
+    width: 100%;
+    padding: 14px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.process-btn:hover {
+    background: #333;
+}
+
+.process-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Progress */
+.progress-section {
+    margin-top: 20px;
+}
+
+.progress-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.progress-item .filename {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.progress-bar-container {
+    background: #eee;
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-bar {
+    background: #1a1a1a;
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.progress-bar.complete {
+    background: #27ae60;
+}
+
+.progress-bar.error {
+    background: #e74c3c;
+}
+
+.progress-message {
+    font-size: 13px;
+    color: #666;
+}
+
+/* Results */
+.results-section {
+    margin-top: 20px;
+}
+
+.result-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.result-card.success {
+    border-color: #27ae60;
+}
+
+.result-card.error {
+    border-color: #e74c3c;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.result-header .filename {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.result-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.size-original {
+    color: #999;
+    text-decoration: line-through;
+}
+
+.size-arrow {
+    color: #999;
+}
+
+.size-new {
+    font-weight: 600;
+    color: #27ae60;
+}
+
+.size-reduction {
+    background: #e8f5e9;
+    color: #27ae60;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.result-summary {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.6;
+    padding: 8px 12px;
+    background: #f8f8f8;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.download-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.download-btn:hover {
+    background: #219a52;
+}
+
+.download-all-btn {
+    width: 100%;
+    padding: 14px;
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.15s;
+}
+
+.download-all-btn:hover {
+    background: #219a52;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .file-card {
+        flex-direction: column;
+    }
+
+    .file-cover {
+        width: 100%;
+        height: 120px;
+    }
+}
