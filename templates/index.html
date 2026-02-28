@@ -3,26 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>X4 EPUB Optimizer</title>
+    <title>epubkit — EPUB Optimizer for E-Ink</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>X4 EPUB Optimizer</h1>
-            <p class="subtitle">Optimize any EPUB for the XTelnk X4 e-reader</p>
+            <div class="logo">
+                <span class="logo-icon">📖</span>
+                <h1>epubkit</h1>
+            </div>
+            <p class="subtitle">Optimize any EPUB for e-ink readers</p>
+            <p class="subtitle-detail">Images &bull; Fonts &bull; CSS &bull; Metadata &bull; TOC &mdash; all in one pass</p>
         </header>
 
         <!-- Upload Zone -->
         <div id="upload-zone" class="upload-zone">
             <div class="upload-content">
-                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="17 8 12 3 7 8"/>
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
-                <p>Drag &amp; drop EPUB files here</p>
-                <p class="upload-hint">or click to browse (max 100MB per file)</p>
+                <p class="upload-label">Drop EPUB files here</p>
+                <p class="upload-hint">or click to browse &bull; up to 100 MB each</p>
             </div>
             <input type="file" id="file-input" accept=".epub" multiple hidden>
         </div>
@@ -32,85 +37,140 @@
 
         <!-- Options Panel -->
         <div id="options-panel" class="options-panel" hidden>
-            <h2>Options</h2>
+            <div class="section-header">
+                <h2>Options</h2>
+            </div>
 
             <div class="preset-bar">
-                <button class="preset-btn" data-preset="quick">Quick</button>
-                <button class="preset-btn active" data-preset="full">Full</button>
-                <button class="preset-btn" data-preset="custom">Custom</button>
+                <button class="preset-btn" data-preset="quick">
+                    <span class="preset-icon">⚡</span>
+                    <span class="preset-label">Quick</span>
+                    <span class="preset-desc">Images only</span>
+                </button>
+                <button class="preset-btn active" data-preset="full">
+                    <span class="preset-icon">✨</span>
+                    <span class="preset-label">Full</span>
+                    <span class="preset-desc">Everything</span>
+                </button>
+                <button class="preset-btn" data-preset="custom">
+                    <span class="preset-icon">🔧</span>
+                    <span class="preset-label">Custom</span>
+                    <span class="preset-desc">Pick &amp; choose</span>
+                </button>
             </div>
 
             <div class="options-grid">
                 <label class="option">
                     <input type="checkbox" id="opt-grayscale" checked>
-                    <span>Grayscale</span>
-                    <small>Convert images to grayscale for e-ink</small>
+                    <div class="option-text">
+                        <span>Grayscale</span>
+                        <small>Convert images for e-ink display</small>
+                    </div>
                 </label>
 
                 <label class="option">
                     <input type="checkbox" id="opt-contrast" checked>
-                    <span>Contrast Boost</span>
-                    <small>Slightly increase contrast for e-ink readability</small>
+                    <div class="option-text">
+                        <span>Contrast Boost</span>
+                        <small>Improve readability on e-ink</small>
+                    </div>
                 </label>
 
                 <label class="option">
                     <input type="checkbox" id="opt-fonts" checked>
-                    <span>Remove Fonts</span>
-                    <small>Strip embedded fonts (e-ink doesn't benefit)</small>
+                    <div class="option-text">
+                        <span>Remove Fonts</span>
+                        <small>Strip embedded fonts</small>
+                    </div>
                 </label>
 
                 <label class="option">
                     <input type="checkbox" id="opt-css" checked>
-                    <span>Remove Unused CSS</span>
-                    <small>Strip CSS rules not used in the content</small>
+                    <div class="option-text">
+                        <span>Clean CSS</span>
+                        <small>Remove unused stylesheets</small>
+                    </div>
                 </label>
 
                 <label class="option">
                     <input type="checkbox" id="opt-cover" checked>
-                    <span>Generate Missing Cover</span>
-                    <small>Create a cover if the EPUB doesn't have one</small>
+                    <div class="option-text">
+                        <span>Generate Cover</span>
+                        <small>Create one if missing</small>
+                    </div>
                 </label>
 
                 <label class="option">
                     <input type="checkbox" id="opt-metadata" checked>
-                    <span>Clean Metadata</span>
-                    <small>Strip store-specific and calibre metadata</small>
+                    <div class="option-text">
+                        <span>Clean Metadata</span>
+                        <small>Strip store/calibre tags</small>
+                    </div>
                 </label>
 
-                <label class="option">
+                <label class="option option-wide">
                     <input type="checkbox" id="opt-lightnovel">
-                    <span>Light Novel Mode</span>
-                    <small>Rotate/split landscape images for vertical viewing</small>
+                    <div class="option-text">
+                        <span>Light Novel Mode</span>
+                        <small>Rotate &amp; split landscape images for vertical reading</small>
+                    </div>
                 </label>
             </div>
 
             <div class="quality-control">
-                <label>JPEG Quality</label>
+                <label class="quality-label">JPEG Quality</label>
                 <div class="quality-presets">
                     <button class="quality-btn" data-quality="40">Low</button>
-                    <button class="quality-btn" data-quality="60">Medium</button>
+                    <button class="quality-btn" data-quality="60">Med</button>
                     <button class="quality-btn active" data-quality="70">High</button>
                     <button class="quality-btn" data-quality="85">Max</button>
                 </div>
-                <input type="range" id="opt-quality" min="20" max="95" value="70">
-                <span id="quality-value">70%</span>
+                <div class="quality-slider-row">
+                    <input type="range" id="opt-quality" min="20" max="95" value="70">
+                    <span id="quality-value">70%</span>
+                </div>
             </div>
 
-            <button id="process-btn" class="process-btn">Optimize EPUBs</button>
+            <button id="process-btn" class="process-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                    <polyline points="16 16 12 12 8 16"/>
+                    <line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+                Optimize EPUBs
+            </button>
         </div>
 
         <!-- Processing Progress -->
         <div id="progress-section" class="progress-section" hidden>
-            <h2>Processing</h2>
+            <div class="section-header">
+                <h2>Processing</h2>
+            </div>
             <div id="progress-items"></div>
         </div>
 
         <!-- Results -->
         <div id="results-section" class="results-section" hidden>
-            <h2>Results</h2>
+            <div class="section-header">
+                <h2>Results</h2>
+            </div>
             <div id="results-items"></div>
             <button id="download-all-btn" class="download-all-btn" hidden>Download All (ZIP)</button>
         </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                <a href="https://github.com/b1rdmania/epubkit" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" class="github-icon">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                    View on GitHub
+                </a>
+                <span class="footer-sep">&bull;</span>
+                <span class="footer-note">Open source &bull; Works with any e-ink reader</span>
+            </p>
+        </footer>
     </div>
 
     <script src="/static/app.js"></script>

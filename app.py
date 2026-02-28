@@ -1,5 +1,5 @@
 """
-FastAPI application for XTelnk X4 EPUB Optimizer.
+FastAPI application for epubkit — EPUB optimizer for e-ink readers.
 Handles: file upload, metadata preview, SSE progress streaming, file download.
 """
 
@@ -20,7 +20,7 @@ from starlette.requests import Request
 
 from epub_processor import process_epub, extract_epub_metadata, ProcessingOptions, ProcessingReport
 
-app = FastAPI(title="X4 EPUB Optimizer")
+app = FastAPI(title="epubkit")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

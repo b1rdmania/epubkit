@@ -1,4 +1,4 @@
-// X4 EPUB Optimizer - Frontend
+// epubkit — Frontend
 
 const uploadZone = document.getElementById('upload-zone');
 const fileInput = document.getElementById('file-input');
@@ -44,7 +44,14 @@ async function handleFiles(files) {
     const formData = new FormData();
     epubFiles.forEach(f => formData.append('files', f));
 
-    uploadZone.innerHTML = '<p>Uploading...</p>';
+    // Show uploading state
+    const uploadContent = uploadZone.querySelector('.upload-content');
+    if (uploadContent) {
+        uploadContent.innerHTML = `
+            <div class="upload-spinner"></div>
+            <p class="upload-label">Uploading${epubFiles.length > 1 ? ` ${epubFiles.length} files` : ''}...</p>
+        `;
+    }
 
     try {
         const response = await fetch('/upload', { method: 'POST', body: formData });
@@ -59,22 +66,26 @@ async function handleFiles(files) {
         renderFileList(data.files);
         optionsPanel.hidden = uploadedFiles.length === 0;
     } catch (err) {
-        uploadZone.innerHTML = `<p style="color:#e74c3c">Upload failed: ${err.message}</p>`;
+        uploadZone.innerHTML = `<div class="upload-content"><p class="upload-label" style="color:var(--error)">Upload failed: ${err.message}</p></div>`;
     }
 
     // Reset upload zone
     setTimeout(() => {
-        uploadZone.innerHTML = `
-            <div class="upload-content">
-                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-                <p>Drag &amp; drop more EPUB files</p>
-                <p class="upload-hint">or click to browse</p>
-            </div>`;
-    }, 500);
+        resetUploadZone();
+    }, 400);
+}
+
+function resetUploadZone() {
+    uploadZone.innerHTML = `
+        <div class="upload-content">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p class="upload-label">${uploadedFiles.length > 0 ? 'Drop more EPUB files' : 'Drop EPUB files here'}</p>
+            <p class="upload-hint">or click to browse &bull; up to 100 MB each</p>
+        </div>`;
 }
 
 function renderFileList(files) {
@@ -101,17 +112,17 @@ function renderFileList(files) {
             </div>` : '';
 
         const sizeStr = file.file_size ? formatBytes(file.file_size) : '';
-        const metaLine = [meta.author, meta.series].filter(Boolean).join(' - ');
+        const metaLine = [meta.author, meta.series].filter(Boolean).join(' \u2014 ');
 
         card.innerHTML = `
             <div class="file-cover">${coverHtml}</div>
             <div class="file-info">
                 <div class="file-name">${escapeHtml(meta.title || file.filename)}</div>
-                <div class="file-meta">${escapeHtml(metaLine)} ${sizeStr ? '(' + sizeStr + ')' : ''}</div>
+                <div class="file-meta">${escapeHtml(metaLine)}${sizeStr ? (metaLine ? ' \u00b7 ' : '') + sizeStr : ''}</div>
                 ${errorHtml}
                 ${editHtml}
             </div>
-            ${file.task_id ? '<button class="file-remove" onclick="removeFile(\'' + file.task_id + '\', this)">&times;</button>' : ''}
+            ${file.task_id ? '<button class="file-remove" onclick="removeFile(\'' + file.task_id + '\', this)" title="Remove">&times;</button>' : ''}
         `;
 
         fileList.appendChild(card);
@@ -120,11 +131,17 @@ function renderFileList(files) {
 
 function removeFile(taskId, btn) {
     uploadedFiles = uploadedFiles.filter(f => f.task_id !== taskId);
-    btn.closest('.file-card').remove();
-    if (uploadedFiles.length === 0) {
-        optionsPanel.hidden = true;
-        fileList.hidden = true;
-    }
+    const card = btn.closest('.file-card');
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(20px)';
+    card.style.transition = 'all 0.2s ease';
+    setTimeout(() => {
+        card.remove();
+        if (uploadedFiles.length === 0) {
+            optionsPanel.hidden = true;
+            fileList.hidden = true;
+        }
+    }, 200);
 }
 
 // ==================== Options ====================
@@ -159,7 +176,6 @@ function setOptions(opts) {
 // Quality slider
 qualitySlider.addEventListener('input', () => {
     qualityValue.textContent = qualitySlider.value + '%';
-    // Update quality preset buttons
     document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
     const matching = document.querySelector(`.quality-btn[data-quality="${qualitySlider.value}"]`);
     if (matching) matching.classList.add('active');
@@ -196,7 +212,11 @@ async function startProcessing() {
     if (validFiles.length === 0) return;
 
     processBtn.disabled = true;
-    processBtn.textContent = 'Processing...';
+    processBtn.innerHTML = `
+        <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+        </svg>
+        Processing...`;
     progressSection.hidden = false;
     resultsSection.hidden = true;
 
@@ -223,7 +243,6 @@ async function startProcessing() {
 
     // Process files sequentially
     for (const file of validFiles) {
-        // Get metadata edits
         const titleInput = document.querySelector(`input[data-task="${file.task_id}"][data-field="title"]`);
         const authorInput = document.querySelector(`input[data-task="${file.task_id}"][data-field="author"]`);
         const editTitle = titleInput ? titleInput.value : '';
@@ -237,11 +256,16 @@ async function startProcessing() {
         }
     }
 
-    // Show results
     showResults(completedIds);
 
     processBtn.disabled = false;
-    processBtn.textContent = 'Optimize EPUBs';
+    processBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+            <polyline points="16 16 12 12 8 16"/>
+            <line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+        </svg>
+        Optimize EPUBs`;
 }
 
 function getOptions() {
@@ -325,10 +349,17 @@ function showResults(completed) {
                     <span class="size-original">${formatBytes(report.original_size)}</span>
                     <span class="size-arrow">&rarr;</span>
                     <span class="size-new">${formatBytes(report.optimized_size)}</span>
-                    <span class="size-reduction">-${reduction}%</span>
+                    <span class="size-reduction">&minus;${reduction}%</span>
                 </div>
                 <div class="result-summary">${escapeHtml(report.summary)}</div>
-                <a href="/download/${task_id}" class="download-btn" download>Download</a>
+                <a href="/download/${task_id}" class="download-btn" download>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download
+                </a>
             `;
         } else {
             card.innerHTML = `
@@ -351,6 +382,9 @@ function showResults(completed) {
     } else {
         downloadAllBtn.hidden = true;
     }
+
+    // Scroll results into view
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ==================== Utilities ====================
@@ -369,3 +403,19 @@ function escapeHtml(str) {
     div.textContent = str;
     return div.innerHTML;
 }
+
+// Spinning animation for processing button
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+    .upload-spinner {
+        width: 28px; height: 28px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 12px;
+    }
+`;
+document.head.appendChild(style);
