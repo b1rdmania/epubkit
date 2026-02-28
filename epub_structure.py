@@ -29,6 +29,11 @@ NS_NCX = 'http://www.daisy.org/z3986/2005/ncx/'
 NS_EPUB = 'http://www.idpf.org/2007/ops'
 
 
+def _is_element(node):
+    """Check if a node is a real element (not a comment or PI)."""
+    return isinstance(node.tag, str)
+
+
 def _find_element(root, local_name):
     """Find an element by local name, trying namespaced then unnamespaced."""
     # Try with OPF namespace first
@@ -74,6 +79,8 @@ def update_opf(opf_path: str, rename_map: dict) -> None:
     opf_dir = str(Path(opf_path).parent)
 
     for item in manifest:
+        if not _is_element(item):
+            continue
         href = item.get('href', '')
         decoded_href = unquote(href)
 
@@ -109,6 +116,8 @@ def update_opf_remove_fonts(opf_path: str, font_files: list[str]) -> int:
 
     to_remove = []
     for item in manifest:
+        if not _is_element(item):
+            continue
         href = unquote(item.get('href', ''))
         if Path(href).name in font_basenames:
             to_remove.append(item)
@@ -255,10 +264,12 @@ def fix_svg_covers(epub_dir: str, opf_path: str) -> int:
     # Build id->href map from manifest
     id_to_href = {}
     for item in manifest:
+        if not _is_element(item):
+            continue
         id_to_href[item.get('id', '')] = item.get('href', '')
 
     # Check first few spine items for SVG cover wrappers
-    spine_items = list(spine)
+    spine_items = [s for s in spine if _is_element(s)]
     for itemref in spine_items[:3]:
         idref = itemref.get('idref', '')
         href = id_to_href.get(idref, '')
@@ -344,6 +355,8 @@ def fix_toc(epub_dir: str, opf_path: str) -> tuple[bool, str]:
     ncx_href = None
     ncx_id = None
     for item in manifest:
+        if not _is_element(item):
+            continue
         media_type = item.get('media-type', '')
         if media_type == 'application/x-dtbncx+xml':
             ncx_href = item.get('href', '')
@@ -353,10 +366,14 @@ def fix_toc(epub_dir: str, opf_path: str) -> tuple[bool, str]:
     # Build spine reading order
     id_to_href = {}
     for item in manifest:
+        if not _is_element(item):
+            continue
         id_to_href[item.get('id', '')] = item.get('href', '')
 
     spine_hrefs = []
     for itemref in spine:
+        if not _is_element(itemref):
+            continue
         idref = itemref.get('idref', '')
         href = id_to_href.get(idref, '')
         if href:
@@ -530,6 +547,8 @@ def find_content_files(epub_dir: str, opf_path: str) -> dict:
         return files
 
     for item in manifest:
+        if not _is_element(item):
+            continue
         href = unquote(item.get('href', ''))
         media_type = item.get('media-type', '').lower()
         full_path = os.path.join(opf_dir, href)

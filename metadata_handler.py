@@ -163,7 +163,9 @@ def _find_cover_id(root: etree._Element, nsmap: dict) -> str:
     manifest = _find_manifest(root)
     if manifest is not None:
         for item in manifest:
-            props = item.get('properties', '')
+            if not isinstance(item.tag, str):
+                continue  # Skip comments/PIs
+            props = item.get('properties') or ''
             if 'cover-image' in props:
                 return item.get('id', '')
 
@@ -175,6 +177,8 @@ def _find_cover_id(root: etree._Element, nsmap: dict) -> str:
     # Strategy 3: Look for item with id containing "cover" and image media type
     if manifest is not None:
         for item in manifest:
+            if not isinstance(item.tag, str):
+                continue  # Skip comments/PIs
             item_id = (item.get('id') or '').lower()
             media_type = (item.get('media-type') or '').lower()
             if 'cover' in item_id and media_type.startswith('image/'):
