@@ -165,6 +165,8 @@ def update_xhtml_references(xhtml_path: str, rename_map: dict) -> int:
 
     # Update <img src="...">
     for img in root.iter():
+        if not _is_element(img):
+            continue
         tag = img.tag.split('}')[-1] if '}' in str(img.tag) else str(img.tag)
 
         if tag == 'img':
@@ -187,7 +189,9 @@ def update_xhtml_references(xhtml_path: str, rename_map: dict) -> int:
 
     # Update inline style background-image references
     for el in root.iter():
-        style = el.get('style', '')
+        if not _is_element(el):
+            continue
+        style = el.get('style') or ''
         if 'url(' in style:
             new_style = _update_css_urls(style, rename_map)
             if new_style != style:
