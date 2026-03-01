@@ -1,5 +1,5 @@
 """
-EPUB structure handler for XTelnk X4 EPUB Optimizer.
+EPUB structure handler for Xteink X4 EPUB Optimizer.
 Handles: OPF/NCX/XHTML reference updates, SVG cover fix, TOC repair/regeneration.
 """
 

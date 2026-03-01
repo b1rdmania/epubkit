@@ -2,7 +2,7 @@
 
 A web-based EPUB optimizer for e-ink readers. Drop in any EPUB and get back a clean, optimized file ready for your device.
 
-Originally built for the [XTelnk X4](https://xteink.com/) (480x800 e-ink display, EPUB/TXT support, 32GB + microSD) but works with any XTelnk reader or e-ink device that supports EPUB.
+Originally built for the [Xteink X4](https://xteink.com/) (480x800 e-ink display, EPUB/TXT support, 32GB + microSD) but works with any Xteink reader or e-ink device that supports EPUB.
 
 ## What it does
 
@@ -10,7 +10,7 @@ epubkit runs a 22-step processing pipeline on your EPUB files:
 
 **Images**
 - Converts all images to baseline JPEG (progressive JPEGs break many e-ink readers)
-- Resizes to fit your screen (default 480x800 for XTelnk X4)
+- Resizes to fit your screen (default 480x800 for Xteink X4)
 - Converts to grayscale with contrast boost for e-ink readability
 - Unwraps SVG cover wrappers (common in Gutenberg/store EPUBs)
 - Generates a cover image if the book doesn't have one

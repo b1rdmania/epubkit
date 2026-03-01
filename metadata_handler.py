@@ -1,5 +1,5 @@
 """
-Metadata handler for XTelnk X4 EPUB Optimizer.
+Metadata handler for Xteink X4 EPUB Optimizer.
 Handles: metadata extraction, cleanup, cover detection, filename formatting.
 """
 

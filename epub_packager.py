@@ -1,5 +1,5 @@
 """
-EPUB packager for XTelnk X4 EPUB Optimizer.
+EPUB packager for Xteink X4 EPUB Optimizer.
 Handles: EPUB extraction, repackaging with correct mimetype-first ZIP structure, OS artifact cleanup.
 """
 

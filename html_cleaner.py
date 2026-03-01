@@ -1,5 +1,5 @@
 """
-HTML cleaner for XTelnk X4 EPUB Optimizer.
+HTML cleaner for Xteink X4 EPUB Optimizer.
 Handles: HTML repair, unused CSS removal, embedded font removal, whitespace/page-break normalization.
 """
 

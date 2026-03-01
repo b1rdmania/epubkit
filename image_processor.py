@@ -1,5 +1,5 @@
 """
-Image processor for XTelnk X4 EPUB Optimizer.
+Image processor for Xteink X4 EPUB Optimizer.
 Handles: baseline JPEG conversion, resize, grayscale, contrast boost, Light Novel mode.
 """
 

@@ -1,5 +1,5 @@
 """
-Main EPUB processing pipeline for XTelnk X4 Optimizer.
+Main EPUB processing pipeline for Xteink X4 Optimizer.
 Orchestrates all processing steps and generates validation reports.
 """
 
