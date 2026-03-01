@@ -21,8 +21,9 @@ from metadata_handler import (
 from html_cleaner import (
     repair_html, remove_unused_css, collect_used_selectors,
     remove_embedded_fonts_from_css, find_font_files, normalize_whitespace,
-    add_chapter_page_breaks
+    add_chapter_page_breaks, strip_unnecessary_attributes
 )
+from text_cleaner import clean_text_content, TextCleanOptions, TextCleanReport
 from epub_packager import (
     extract_epub, package_epub, remove_os_artifacts, has_drm, find_opf_path
 )
@@ -38,14 +39,17 @@ class ProcessingOptions:
     """All user-configurable processing options."""
     grayscale: bool = True
     contrast_boost: bool = True
-    contrast_factor: float = 1.3
+    contrast_factor: float = 1.5  # Higher default for 4-level display
     quality: int = 70
+    eink_quantize: bool = True  # 4-level grayscale for SSD1677
     remove_fonts: bool = True
     remove_unused_css: bool = True
     light_novel_mode: bool = False
     light_novel_rotate_left: bool = True
     generate_missing_cover: bool = True
     clean_metadata: bool = True
+    text_cleanup: bool = True
+    normalize_quotes: bool = True
     # Metadata edits (applied if non-empty)
     metadata_edits: dict = field(default_factory=dict)
 
@@ -68,6 +72,9 @@ class ProcessingReport:
     toc_status: str = ''
     metadata_items_stripped: int = 0
     whitespace_cleaned: int = 0
+    attrs_stripped: int = 0
+    text_fixes_total: int = 0
+    text_cleanup_summary: str = ''
     os_artifacts_removed: int = 0
     cover_generated: bool = False
     # Details
@@ -101,6 +108,12 @@ class ProcessingReport:
 
         if self.whitespace_cleaned > 0:
             parts.append(f"Cleaned {self.whitespace_cleaned} empty elements")
+
+        if self.attrs_stripped > 0:
+            parts.append(f"Stripped {self.attrs_stripped} unnecessary attributes")
+
+        if self.text_fixes_total > 0:
+            parts.append(f"Text cleanup: {self.text_cleanup_summary}")
 
         if self.os_artifacts_removed > 0:
             parts.append(f"Removed {self.os_artifacts_removed} OS artifacts")
@@ -174,6 +187,7 @@ def process_epub(input_path: str, output_path: str,
             contrast_boost=options.contrast_boost,
             contrast_factor=options.contrast_factor,
             quality=options.quality,
+            eink_quantize=options.eink_quantize,
             light_novel_mode=options.light_novel_mode,
             light_novel_rotate_left=options.light_novel_rotate_left,
         )
@@ -267,17 +281,20 @@ def process_epub(input_path: str, output_path: str,
                 if os.path.exists(css_path):
                     update_css_references(css_path, rename_map)
 
-        # Step 11: Repair HTML (72%)
-        _progress(72, "Repairing HTML...")
+        # Step 11: Repair HTML + strip unnecessary attributes (70%)
+        _progress(70, "Repairing HTML...")
         for xhtml_path in content_files['xhtml']:
             if os.path.exists(xhtml_path):
                 with open(xhtml_path, 'rb') as f:
                     html_bytes = f.read()
                 repaired = repair_html(html_bytes)
+                # Strip decorative attributes (data-*, aria-*, etc) for 380KB RAM device
+                repaired, stripped = strip_unnecessary_attributes(repaired)
+                report.attrs_stripped += stripped
                 with open(xhtml_path, 'wb') as f:
                     f.write(repaired)
 
-        # Step 12: Remove unused CSS (76%)
+        # Step 12: Remove unused CSS (74%)
         if options.remove_unused_css:
             _progress(76, "Removing unused CSS...")
             # Collect all used selectors from XHTML files
@@ -328,8 +345,8 @@ def process_epub(input_path: str, output_path: str,
                 # Remove from OPF manifest
                 update_opf_remove_fonts(opf_path, font_files)
 
-        # Step 14: Normalize whitespace and page breaks (84%)
-        _progress(84, "Normalizing content...")
+        # Step 14: Normalize whitespace and page breaks (82%)
+        _progress(82, "Normalizing content...")
         for xhtml_path in content_files['xhtml']:
             if os.path.exists(xhtml_path):
                 with open(xhtml_path, 'rb') as f:
@@ -340,7 +357,26 @@ def process_epub(input_path: str, output_path: str,
                 with open(xhtml_path, 'wb') as f:
                     f.write(cleaned)
 
-        # Step 15: Clean metadata (87%)
+        # Step 15: Text content cleanup (85%)
+        if options.text_cleanup:
+            _progress(85, "Cleaning text content...")
+            text_opts = TextCleanOptions(normalize_quotes=options.normalize_quotes)
+            aggregate_report = TextCleanReport()
+
+            for xhtml_path in content_files['xhtml']:
+                if os.path.exists(xhtml_path):
+                    with open(xhtml_path, 'rb') as f:
+                        html_bytes = f.read()
+                    cleaned, text_report = clean_text_content(html_bytes, text_opts)
+                    if text_report.total_fixes > 0:
+                        with open(xhtml_path, 'wb') as f:
+                            f.write(cleaned)
+                        aggregate_report.merge(text_report)
+
+            report.text_fixes_total = aggregate_report.total_fixes
+            report.text_cleanup_summary = aggregate_report.summary()
+
+        # Step 16: Clean metadata (88%)
         if options.clean_metadata:
             _progress(87, "Cleaning metadata...")
             opf_tree = etree.parse(opf_path)
@@ -348,20 +384,20 @@ def process_epub(input_path: str, output_path: str,
             if report.metadata_items_stripped > 0:
                 opf_tree.write(opf_path, xml_declaration=True, encoding='utf-8', pretty_print=True)
 
-        # Step 16: Fix TOC (90%)
+        # Step 17: Fix TOC (90%)
         _progress(90, "Checking TOC...")
         toc_fixed, toc_msg = fix_toc(work_dir, opf_path)
         report.toc_status = toc_msg
 
-        # Step 17: Clean OS artifacts (93%)
+        # Step 18: Clean OS artifacts (93%)
         _progress(93, "Cleaning up...")
         report.os_artifacts_removed = remove_os_artifacts(work_dir)
 
-        # Step 18: Repackage (95%)
+        # Step 19: Repackage (95%)
         _progress(95, "Repackaging EPUB...")
         package_epub(work_dir, output_path)
 
-        # Step 19: Generate output filename
+        # Step 20: Generate output filename
         opf_tree = etree.parse(opf_path)
         final_metadata = extract_metadata(opf_tree)
         title = options.metadata_edits.get('title', final_metadata['title']) or final_metadata['title']

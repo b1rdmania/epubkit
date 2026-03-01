@@ -255,6 +255,84 @@ def normalize_whitespace(xhtml_bytes: bytes) -> tuple[bytes, int]:
     return result.encode('utf-8'), removed
 
 
+# Attributes to keep during stripping (essential for EPUB rendering)
+KEEP_ATTRS = frozenset({
+    'class', 'id', 'href', 'src', 'style', 'alt', 'title',
+    'type', 'name', 'content', 'charset', 'http-equiv',
+    'xmlns', 'version', 'media-type', 'properties',
+    'rel', 'media', 'width', 'height', 'colspan', 'rowspan',
+    'scope', 'headers', 'border', 'cellpadding', 'cellspacing',
+})
+
+# Attribute prefixes to always strip
+STRIP_ATTR_PREFIXES = ('data-', 'aria-', 'epub:')
+
+
+def strip_unnecessary_attributes(xhtml_bytes: bytes) -> tuple[bytes, int]:
+    """
+    Strip decorative/accessibility attributes that e-ink readers ignore.
+    Reduces file size and parsing overhead for the 380KB-RAM ESP32-C3.
+
+    Keeps: class, id, href, src, style, alt, title, xmlns, and other
+    essential XHTML/EPUB attributes.
+
+    Returns (cleaned bytes, count of removed attributes).
+    """
+    try:
+        tree = etree.fromstring(xhtml_bytes)
+    except etree.XMLSyntaxError:
+        parser = etree.HTMLParser(recover=True)
+        tree = etree.fromstring(xhtml_bytes, parser)
+        if tree is None:
+            return xhtml_bytes, 0
+
+    removed = 0
+
+    for el in tree.iter():
+        if not isinstance(el.tag, str):
+            continue
+
+        attrs_to_remove = []
+        for attr in el.attrib:
+            # Get local attribute name (strip namespace)
+            attr_local = attr.split('}')[-1] if '}' in attr else attr
+
+            # Skip namespace declarations
+            if attr.startswith('{') and attr_local in ('xmlns',):
+                continue
+
+            # Check if it's a kept attribute
+            if attr_local.lower() in KEEP_ATTRS:
+                continue
+
+            # Check for namespace-prefixed essential attrs (xlink:href etc)
+            if attr_local in ('href', 'src', 'type', 'lang'):
+                continue
+
+            # Strip known-useless prefixes
+            if any(attr_local.lower().startswith(p) for p in STRIP_ATTR_PREFIXES):
+                attrs_to_remove.append(attr)
+                continue
+
+            # Strip other non-essential attributes
+            if attr_local.lower() in ('role', 'tabindex', 'accesskey', 'draggable',
+                                       'contenteditable', 'spellcheck', 'autocorrect',
+                                       'autocapitalize', 'autofocus', 'dir',
+                                       'translate', 'inputmode', 'enterkeyhint',
+                                       'hidden', 'inert', 'popover'):
+                attrs_to_remove.append(attr)
+
+        for attr in attrs_to_remove:
+            del el.attrib[attr]
+            removed += 1
+
+    if removed > 0:
+        result = etree.tostring(tree, encoding='unicode', pretty_print=True)
+        return result.encode('utf-8'), removed
+
+    return xhtml_bytes, removed
+
+
 def add_chapter_page_breaks(xhtml_bytes: bytes) -> bytes:
     """
     Add CSS page-break-before to chapter headings (h1, h2) if not already present.

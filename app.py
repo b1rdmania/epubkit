@@ -141,6 +141,7 @@ async def process_sse(
     light_novel: bool = False,
     generate_cover: bool = True,
     clean_metadata: bool = True,
+    text_cleanup: bool = True,
     edit_title: str = "",
     edit_author: str = "",
 ):
@@ -166,6 +167,7 @@ async def process_sse(
         light_novel_mode=light_novel,
         generate_missing_cover=generate_cover,
         clean_metadata=clean_metadata,
+        text_cleanup=text_cleanup,
     )
 
     if edit_title or edit_author:
@@ -230,6 +232,9 @@ async def process_sse(
                 "toc_status": report.toc_status,
                 "metadata_items_stripped": report.metadata_items_stripped,
                 "cover_generated": report.cover_generated,
+                "attrs_stripped": report.attrs_stripped,
+                "text_fixes_total": report.text_fixes_total,
+                "text_cleanup_summary": report.text_cleanup_summary,
             }
         }
 

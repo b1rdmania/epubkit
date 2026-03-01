@@ -29,7 +29,7 @@
                 <h1>EPUB Kit</h1>
             </div>
             <p class="subtitle">Optimize any EPUB for Xteink e-ink readers</p>
-            <p class="subtitle-detail">Images &bull; Fonts &bull; CSS &bull; Metadata &bull; TOC &mdash; all in one pass</p>
+            <p class="subtitle-detail">800&times;480 &bull; 4-level grayscale &bull; Images &bull; Text &bull; Fonts &bull; CSS &mdash; all in one pass</p>
         </header>
 
         <!-- Upload Zone -->
@@ -59,12 +59,12 @@
                 <button class="preset-btn" data-preset="quick">
                     <span class="preset-icon">⚡</span>
                     <span class="preset-label">Quick</span>
-                    <span class="preset-desc">Images only</span>
+                    <span class="preset-desc">Images + text</span>
                 </button>
                 <button class="preset-btn active" data-preset="full">
                     <span class="preset-icon">✨</span>
                     <span class="preset-label">Full</span>
-                    <span class="preset-desc">Everything</span>
+                    <span class="preset-desc">X4-optimized</span>
                 </button>
                 <button class="preset-btn" data-preset="custom">
                     <span class="preset-icon">🔧</span>
@@ -119,6 +119,14 @@
                     <div class="option-text">
                         <span>Clean Metadata</span>
                         <small>Strip store/calibre tags</small>
+                    </div>
+                </label>
+
+                <label class="option">
+                    <input type="checkbox" id="opt-textcleanup" checked>
+                    <div class="option-text">
+                        <span>Text Cleanup</span>
+                        <small>Fix spacing, OCR errors, encoding</small>
                     </div>
                 </label>
 
