@@ -10,6 +10,8 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from presets import DevicePreset
+
 from lxml import etree
 
 from image_processor import (
@@ -50,8 +52,28 @@ class ProcessingOptions:
     clean_metadata: bool = True
     text_cleanup: bool = True
     normalize_quotes: bool = True
+    # Target-device dimensions. Defaults match the X4 preset for backwards
+    # compatibility with callers (e.g. the web UI) that don't set a preset.
+    max_width: int = 800
+    max_height: int = 480
     # Metadata edits (applied if non-empty)
     metadata_edits: dict = field(default_factory=dict)
+
+    @classmethod
+    def from_preset(cls, preset: DevicePreset, **overrides) -> "ProcessingOptions":
+        """Construct from a DevicePreset; keyword overrides win.
+
+        Use overrides for per-invocation tweaks (e.g. CLI flags) while
+        keeping the preset as the source of truth for device dimensions.
+        """
+        base: dict = dict(
+            max_width=preset.max_width,
+            max_height=preset.max_height,
+            contrast_factor=preset.contrast_factor,
+            quality=preset.quality,
+        )
+        base.update(overrides)
+        return cls(**base)
 
 
 @dataclass
@@ -190,6 +212,8 @@ def process_epub(input_path: str, output_path: str,
             eink_quantize=options.eink_quantize,
             light_novel_mode=options.light_novel_mode,
             light_novel_rotate_left=options.light_novel_rotate_left,
+            max_width=options.max_width,
+            max_height=options.max_height,
         )
 
         image_files = content_files['images']
@@ -247,7 +271,11 @@ def process_epub(input_path: str, output_path: str,
             if not meta['cover_href']:
                 title = options.metadata_edits.get('title', meta['title']) or 'Untitled'
                 author = options.metadata_edits.get('author', meta['author']) or ''
-                cover_bytes = generate_cover_image(title, author)
+                cover_bytes = generate_cover_image(
+                    title, author,
+                    width=options.max_width,
+                    height=options.max_height,
+                )
                 opf_dir = str(Path(opf_path).parent)
                 # Determine images directory
                 images_dir = os.path.join(opf_dir, 'images')

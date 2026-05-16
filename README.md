@@ -33,11 +33,45 @@ epubkit runs a 20-step pipeline on every EPUB:
 
 ## Usage
 
+### Web UI
+
 1. **Drop** one or more EPUB files onto the upload zone
 2. **Edit** title/author if needed (auto-detected from metadata)
 3. **Pick a preset**: Quick (images + text), Full (X4-optimized), or Custom
 4. **Click Optimize** and watch real-time progress via SSE streaming
 5. **Download** the optimized EPUB — ready to transfer to your reader
+
+### Command line
+
+Install with pip (editable mode picks up local changes):
+
+```bash
+pip install -e .
+```
+
+Then run on any EPUB:
+
+```bash
+epubkit-cli --input book.epub --output book-x3.epub --preset xteink-x3
+```
+
+Available device presets (`epubkit-cli --list-presets`):
+
+| Preset | Display | Notes |
+|---|---|---|
+| `xteink-x4` | 800×480 landscape | Default; matches the legacy behavior |
+| `xteink-x3` | 555×740 portrait | Smaller sibling device |
+
+Flags:
+
+| Flag | Purpose |
+|---|---|
+| `--preset NAME` | Target device (default: `xteink-x4`) |
+| `--quality N` | JPEG quality 1-100 (override preset default) |
+| `--light-novel` | Rotate / split landscape images |
+| `--keep-fonts` | Preserve embedded fonts (default: strip) |
+| `--verbose` / `-v` | Stream pipeline progress to stderr |
+| `--list-presets` | Print the preset registry and exit |
 
 ## Processing presets
 
