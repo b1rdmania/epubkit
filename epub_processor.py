@@ -1,5 +1,5 @@
 """
-Main EPUB processing pipeline for Xteink X4 Optimizer.
+Main EPUB processing pipeline for Xteink Optimizer (X4, X3).
 Orchestrates all processing steps and generates validation reports.
 """
 
@@ -13,7 +13,8 @@ from typing import Callable, Optional
 from lxml import etree
 
 from image_processor import (
-    ImageOptions, process_image, should_process, generate_cover_image
+    ImageOptions, process_image, should_process, generate_cover_image,
+    DEVICE_PROFILES, DEFAULT_DEVICE
 )
 from metadata_handler import (
     extract_metadata, update_metadata, strip_store_metadata, format_filename
@@ -37,11 +38,12 @@ from epub_structure import (
 @dataclass
 class ProcessingOptions:
     """All user-configurable processing options."""
+    device: str = DEFAULT_DEVICE  # 'x4' (480x800) or 'x3' (528x792), both 4-level gray
     grayscale: bool = True
     contrast_boost: bool = True
-    contrast_factor: float = 1.5  # Higher default for 4-level display
+    contrast_factor: float = 1.5  # Higher default for low-bit-depth displays
     quality: int = 70
-    eink_quantize: bool = True  # 4-level grayscale for SSD1677
+    eink_quantize: bool = True  # Quantize to device gray levels
     remove_fonts: bool = True
     remove_unused_css: bool = True
     light_novel_mode: bool = False
@@ -182,7 +184,8 @@ def process_epub(input_path: str, output_path: str,
 
         # Step 7: Process images (20-60%)
         _progress(15, "Processing images...")
-        image_options = ImageOptions(
+        image_options = ImageOptions.for_device(
+            options.device,
             grayscale=options.grayscale,
             contrast_boost=options.contrast_boost,
             contrast_factor=options.contrast_factor,
@@ -247,7 +250,12 @@ def process_epub(input_path: str, output_path: str,
             if not meta['cover_href']:
                 title = options.metadata_edits.get('title', meta['title']) or 'Untitled'
                 author = options.metadata_edits.get('author', meta['author']) or ''
-                cover_bytes = generate_cover_image(title, author)
+                profile = DEVICE_PROFILES.get(options.device, DEVICE_PROFILES[DEFAULT_DEVICE])
+                cover_bytes = generate_cover_image(
+                    title, author,
+                    width=profile['width'], height=profile['height'],
+                    gray_levels=profile['gray_levels'] if options.eink_quantize else None,
+                )
                 opf_dir = str(Path(opf_path).parent)
                 # Determine images directory
                 images_dir = os.path.join(opf_dir, 'images')

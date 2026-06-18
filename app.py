@@ -19,6 +19,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from epub_processor import process_epub, extract_epub_metadata, ProcessingOptions, ProcessingReport
+from image_processor import DEVICE_PROFILES
 
 app = FastAPI(title="epubkit")
 
@@ -133,6 +134,7 @@ async def upload_files(files: list[UploadFile] = File(...)):
 @app.get("/process/{task_id}")
 async def process_sse(
     task_id: str,
+    device: str = "x4",
     grayscale: bool = True,
     contrast: bool = True,
     quality: int = 70,
@@ -153,12 +155,17 @@ async def process_sse(
     if task["status"] == "processing":
         raise HTTPException(status_code=409, detail="Already processing")
 
+    if device not in DEVICE_PROFILES:
+        allowed = ", ".join(f"'{d}'" for d in DEVICE_PROFILES)
+        raise HTTPException(status_code=400, detail=f"Unknown device (expected {allowed})")
+
     input_path = task["file_path"]
     out_dir = OUTPUT_DIR / task_id
     out_dir.mkdir(parents=True, exist_ok=True)
     output_path = str(out_dir / "output.epub")
 
     options = ProcessingOptions(
+        device=device,
         grayscale=grayscale,
         contrast_boost=contrast,
         quality=quality,
@@ -291,7 +298,7 @@ async def download_all(task_ids: str):
     # Create ZIP file
     zip_dir = OUTPUT_DIR / "batch"
     zip_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = str(zip_dir / f"x4_optimized_{uuid.uuid4().hex[:8]}.zip")
+    zip_path = str(zip_dir / f"epubkit_optimized_{uuid.uuid4().hex[:8]}.zip")
 
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         for task_id in ids:
@@ -305,7 +312,7 @@ async def download_all(task_ids: str):
     return FileResponse(
         zip_path,
         media_type="application/zip",
-        filename="x4_optimized_epubs.zip",
+        filename="epubkit_optimized_epubs.zip",
     )
 
 

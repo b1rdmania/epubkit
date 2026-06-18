@@ -1,30 +1,61 @@
 """
-Image processor for Xteink X4 EPUB Optimizer.
-Handles: baseline JPEG conversion, resize, 4-level grayscale quantization,
+Image processor for Xteink EPUB Optimizer.
+Handles: baseline JPEG conversion, resize, grayscale quantization,
 contrast boost, Light Novel mode.
 
-X4 specs (SSD1677 controller):
-  - Display: 800x480, 4-level grayscale (black, dark gray, light gray, white)
-  - Max image: 1024x1024
-  - RAM: 380KB — smaller images = faster rendering
+Device profiles (display orientation, portrait):
+  X4 (SSD1677 controller):
+    - Display: 480x800, 4-level grayscale (black, dark gray, light gray, white)
+  X3 (SSD1677 controller):
+    - Display: 528x792, same 4-level grayscale hardware
+    - Note: stock X3 firmware does not render EPUB images at all; image
+      output targets CrossPoint-family firmware
+  Both:
+    - Max image: 1024x1024
+    - RAM: 380KB — smaller images = faster rendering
 """
 
 import io
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from PIL import Image, ImageEnhance, ImageOps, ImageDraw, ImageFont
 
 
-# X4 screen dimensions (800x480 landscape panel)
-X4_WIDTH = 800
-X4_HEIGHT = 480
+# Device screen profiles in display orientation (portrait), matching the
+# CrossPoint reference converter (X4: 480x800, X3: 528x792). The panels scan
+# in landscape (e.g. 800x480) but the readers display portrait — and render
+# images at native size without upscaling, so images sized to the old
+# landscape box drew as a small box instead of filling the screen.
+DEVICE_PROFILES = {
+    'x4': {
+        'width': 480,
+        'height': 800,
+        # SSD1677 4-level grayscale: black, dark gray, light gray, white
+        'gray_levels': [0, 85, 170, 255],
+        'label': 'Xteink X4',
+    },
+    'x3': {
+        'width': 528,
+        'height': 792,
+        # Same SSD1677 4-level grayscale as the X4. Stock X3 firmware does
+        # not render EPUB images at all (hardware-verified), so image output
+        # targets CrossPoint-family firmware, which renders grayscale.
+        'gray_levels': [0, 85, 170, 255],
+        'label': 'Xteink X3',
+    },
+}
+DEFAULT_DEVICE = 'x4'
 
-# Hard limit per X4 JPEG spec
+# X4 display dimensions (portrait), used as defaults
+X4_WIDTH = DEVICE_PROFILES['x4']['width']
+X4_HEIGHT = DEVICE_PROFILES['x4']['height']
+
+# Hard limit per Xteink JPEG spec
 MAX_IMAGE_DIMENSION = 1024
 
-# SSD1677 supports 4-level grayscale: black, dark gray, light gray, white
-EINK_PALETTE_LEVELS = [0, 85, 170, 255]
+# Default palette (X4)
+EINK_PALETTE_LEVELS = DEVICE_PROFILES['x4']['gray_levels']
 
 SUPPORTED_EXTENSIONS = {'.png', '.gif', '.webp', '.bmp', '.jpeg', '.jpg', '.tif', '.tiff'}
 
@@ -33,13 +64,26 @@ SUPPORTED_EXTENSIONS = {'.png', '.gif', '.webp', '.bmp', '.jpeg', '.jpg', '.tif'
 class ImageOptions:
     grayscale: bool = True
     contrast_boost: bool = True
-    contrast_factor: float = 1.5  # Higher default for 4-level display
+    contrast_factor: float = 1.5  # Higher default for low-bit-depth displays
     quality: int = 70
     max_width: int = X4_WIDTH
     max_height: int = X4_HEIGHT
-    eink_quantize: bool = True  # Quantize to 4 gray levels (SSD1677)
+    eink_quantize: bool = True  # Quantize to device gray levels
+    gray_levels: list = field(default_factory=lambda: list(EINK_PALETTE_LEVELS))
     light_novel_mode: bool = False
     light_novel_rotate_left: bool = True
+
+    @classmethod
+    def for_device(cls, device: str, **overrides) -> 'ImageOptions':
+        """Build options from a device profile ('x4' or 'x3')."""
+        profile = DEVICE_PROFILES.get(device, DEVICE_PROFILES[DEFAULT_DEVICE])
+        defaults = {
+            'max_width': profile['width'],
+            'max_height': profile['height'],
+            'gray_levels': list(profile['gray_levels']),
+        }
+        defaults.update(overrides)
+        return cls(**defaults)
 
 
 @dataclass
@@ -68,24 +112,25 @@ def is_progressive_jpeg(image_bytes: bytes) -> bool:
         return False
 
 
-def _quantize_to_4_levels(img: Image.Image) -> Image.Image:
+def _quantize_to_levels(img: Image.Image, levels: list[int]) -> Image.Image:
     """
-    Quantize grayscale image to 4 e-ink levels with Floyd-Steinberg dithering.
-    Maps to: black (0), dark gray (85), light gray (170), white (255).
-    Uses PIL's built-in quantize with a custom 4-color palette for speed.
+    Quantize grayscale image to the device's e-ink levels with
+    Floyd-Steinberg dithering (e.g. [0, 85, 170, 255] for the SSD1677
+    4-level palette; any level count works, e.g. [0, 255] for 1-bit).
+    Uses PIL's built-in quantize with a custom palette for speed.
     """
-    # Build a 4-color grayscale palette image
+    # Build a grayscale palette image from the device levels
     palette_img = Image.new('P', (1, 1))
     palette = []
-    for level in EINK_PALETTE_LEVELS:
+    for level in levels:
         palette.extend([level, level, level])
     # Pad palette to 256 entries (required by PIL)
-    palette.extend([0, 0, 0] * (256 - len(EINK_PALETTE_LEVELS)))
+    palette.extend([0, 0, 0] * (256 - len(levels)))
     palette_img.putpalette(palette)
 
     # Quantize with Floyd-Steinberg dithering
     rgb = img.convert('RGB')
-    quantized = rgb.quantize(colors=len(EINK_PALETTE_LEVELS),
+    quantized = rgb.quantize(colors=len(levels),
                              palette=palette_img,
                              dither=Image.Dither.FLOYDSTEINBERG)
     return quantized.convert('L')
@@ -135,7 +180,7 @@ def _handle_light_novel(img: Image.Image, rotate_left: bool) -> list[Image.Image
 
 def process_image(image_bytes: bytes, filename: str, options: ImageOptions = None) -> list[ImageResult]:
     """
-    Process a single image for X4 optimization.
+    Process a single image for e-ink device optimization.
     Returns a list of ImageResult (usually 1, but Light Novel mode may split into 2).
     """
     if options is None:
@@ -192,7 +237,7 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
 
         orig_w, orig_h = current_img.size
 
-        # Enforce 1024x1024 hard limit (X4 JPEG spec)
+        # Enforce 1024x1024 hard limit (Xteink JPEG spec)
         if orig_w > MAX_IMAGE_DIMENSION or orig_h > MAX_IMAGE_DIMENSION:
             current_img.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION),
                                   Image.Resampling.LANCZOS)
@@ -200,7 +245,7 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
             details_parts.append(f"clamped {orig_w}x{orig_h}→{clamped_w}x{clamped_h}")
             orig_w, orig_h = clamped_w, clamped_h
 
-        # Resize to fit X4 screen
+        # Resize to fit device screen
         if orig_w > options.max_width or orig_h > options.max_height:
             current_img.thumbnail((options.max_width, options.max_height),
                                   Image.Resampling.LANCZOS)
@@ -214,15 +259,18 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
             # Contrast enhancement (before quantization for best results)
             if options.contrast_boost:
                 if options.eink_quantize:
-                    # Auto-stretch histogram first for better 4-level mapping
+                    # Auto-stretch histogram first for better level mapping
                     current_img = ImageOps.autocontrast(current_img, cutoff=1)
                 enhancer = ImageEnhance.Contrast(current_img)
                 current_img = enhancer.enhance(options.contrast_factor)
 
-            # Quantize to 4 e-ink levels with dithering
+            # Quantize to device e-ink levels with dithering
             if options.eink_quantize:
-                current_img = _quantize_to_4_levels(current_img)
-                details_parts.append("4-level grayscale")
+                current_img = _quantize_to_levels(current_img, options.gray_levels)
+                if len(options.gray_levels) == 2:
+                    details_parts.append("B/W dithered")
+                else:
+                    details_parts.append(f"{len(options.gray_levels)}-level grayscale")
             else:
                 details_parts.append("grayscale")
 
@@ -272,8 +320,13 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
 
 
 def generate_cover_image(title: str, author: str,
-                         width: int = X4_WIDTH, height: int = X4_HEIGHT) -> bytes:
-    """Generate a simple cover image from title and author text."""
+                         width: int = X4_WIDTH, height: int = X4_HEIGHT,
+                         gray_levels: list[int] | None = None) -> bytes:
+    """
+    Generate a simple cover image from title and author text.
+    If gray_levels is given, quantize to the device palette (with dithering)
+    so gray borders/text survive low-bit-depth displays.
+    """
     img = Image.new('RGB', (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(img)
 
@@ -336,6 +389,9 @@ def generate_cover_image(title: str, author: str,
             x = (width - line_w) // 2
             draw.text((x, author_y), line, fill=(100, 100, 100), font=author_font)
             author_y += bbox[3] - bbox[1] + 6
+
+    if gray_levels:
+        img = _quantize_to_levels(img.convert('L'), gray_levels).convert('RGB')
 
     buffer = io.BytesIO()
     img.save(buffer, format='JPEG', quality=85, progressive=False, optimize=True)

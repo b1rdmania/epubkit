@@ -2,7 +2,7 @@
 
 A web-based EPUB optimizer for e-ink readers. Drop in any EPUB and get back a clean, optimized file ready for your device.
 
-Originally built for the [Xteink X4](https://xteink.com/) (800x480 e-ink display, 4-level grayscale, SSD1677 controller, ESP32-C3) but works with any Xteink reader or e-ink device that supports EPUB.
+Originally built for the [Xteink X4](https://xteink.com/) (480x800 portrait e-ink display, 4-level grayscale, SSD1677 controller, ESP32-C3). Now also supports the smaller [Xteink X3](https://www.xteink.com/products/xteink-x3) (528x792 display, same controller) via a device toggle, and works with any Xteink reader or e-ink device that supports EPUB.
 
 ## Processing pipeline
 
@@ -16,7 +16,7 @@ epubkit runs a 20-step pipeline on every EPUB:
 | 4 | **Read metadata** — extracts title, author, series, language, cover reference |
 | 5 | **Apply metadata edits** — overwrites title/author if the user edited them in the UI |
 | 6 | **Find content files** — catalogs all XHTML, CSS, image, and font files in the EPUB |
-| 7 | **Process images** — converts all images to baseline JPEG, resizes to 800x480 (max 1024x1024), applies 4-level grayscale quantization with Floyd-Steinberg dithering, autocontrast histogram stretching, and contrast boost. Light Novel mode rotates/splits landscape images |
+| 7 | **Process images** — converts all images to baseline JPEG, resizes to the device screen (480x800 for X4, 528x792 for X3; max 1024x1024), applies 4-level grayscale quantization with Floyd-Steinberg dithering, autocontrast histogram stretching, and contrast boost. Light Novel mode rotates/splits landscape images |
 | 8 | **Fix SVG covers** — unwraps SVG-wrapped cover images (common in Gutenberg/store EPUBs) |
 | 9 | **Generate cover** — creates a title/author cover image if the book doesn't have one |
 | 10 | **Update references** — rewrites all internal hrefs and srcs to match renamed image files |
@@ -35,37 +35,44 @@ epubkit runs a 20-step pipeline on every EPUB:
 
 1. **Drop** one or more EPUB files onto the upload zone
 2. **Edit** title/author if needed (auto-detected from metadata)
-3. **Pick a preset**: Quick (images + text), Full (X4-optimized), or Custom
-4. **Click Optimize** and watch real-time progress via SSE streaming
-5. **Download** the optimized EPUB — ready to transfer to your reader
+3. **Pick your device**: X4 or X3 (sets screen size and grayscale depth)
+4. **Pick a preset**: Quick (images + text), Full (device-optimized), or Custom
+5. **Click Optimize** and watch real-time progress via SSE streaming
+6. **Download** the optimized EPUB — ready to transfer to your reader
 
 ## Processing presets
 
 | Preset | Images | Text | Fonts | CSS | Cover | Metadata | Best for |
 |--------|--------|------|-------|-----|-------|----------|----------|
 | Quick  | Yes    | Yes  | No    | No  | No    | No       | Fast image + text pass |
-| Full   | Yes    | Yes  | Yes   | Yes | Yes   | Yes      | Complete X4 optimization |
+| Full   | Yes    | Yes  | Yes   | Yes | Yes   | Yes      | Complete device optimization |
 | Custom | Pick   | Pick | Pick  | Pick| Pick  | Pick     | Fine-grained control |
 
-## Xteink X4 specs
+The device toggle (X4/X3) works independently of the preset — it controls image dimensions and grayscale depth.
+
+## Device specs
 
 The optimizer is tuned for these hardware constraints:
 
-| Spec | Value |
-|------|-------|
-| Display | 800x480 e-ink panel |
-| Grayscale | 4 levels (SSD1677 controller): black, dark gray, light gray, white |
-| Processor | ESP32-C3, 160MHz |
-| RAM | 380KB usable |
-| Max image | 1024x1024 pixels |
-| Formats | EPUB, XTC, XTCH, Markdown, TXT |
-| Storage | 32GB + microSD |
+| Spec | X4 | X3 |
+|------|----|----|
+| Display | 480x800 portrait (4.3" panel) | 528x792 portrait (3.7" panel) |
+| Grayscale | 4 levels (SSD1677): black, dark gray, light gray, white | Same 4-level SSD1677 hardware |
+| Processor | ESP32-C3, 160MHz | ESP32-C3 |
+| RAM | 380KB usable | 380KB usable |
+| Max image | 1024x1024 pixels | 1024x1024 pixels |
+| Formats | EPUB, XTC, XTCH, Markdown, TXT | EPUB, TXT |
+| Storage | 32GB + microSD | 16GB microSD |
+
+Image fit boxes match the [CrossPoint reference converter](https://github.com/crosspoint-reader/crosspoint-reader) device profiles (X4: 480x800, X3: 528x792). The panels scan in landscape, but the readers display portrait — images sized to the portrait box render sharp without reader-side upscaling.
+
+Note: stock Xteink firmware (X3 and X4 alike) does not render images inside EPUBs at all — hardware-verified on both devices with unmodified store EPUBs and a diagnostic EPUB covering 8 encoding variants (JPEG parameter permutations, PNG, BMP); every image page renders blank while text renders normally. Image optimization therefore benefits custom firmware such as [CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader)/CrossInk, which renders 4-level grayscale images on both panels.
 
 ## Image processing details
 
 - **Format**: All images converted to baseline JPEG (progressive breaks many e-ink readers)
-- **Resize**: Fit within 800x480 screen, hard clamp at 1024x1024
-- **Grayscale**: 4-level quantization matching SSD1677 palette (0, 85, 170, 255) with Floyd-Steinberg dithering
+- **Resize**: Fit within the device screen (480x800 X4, 528x792 X3, portrait), hard clamp at 1024x1024
+- **Grayscale**: 4-level quantization matching the SSD1677 palette (0, 85, 170, 255) with Floyd-Steinberg dithering (both devices)
 - **Contrast**: Auto-histogram stretching (`ImageOps.autocontrast`) followed by 1.5x contrast boost
 - **Subsampling**: 4:2:0 for grayscale (all RGB channels identical, saves ~15-20%), 4:4:4 for color
 - **Transparency**: Alpha composited onto white background

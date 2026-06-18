@@ -12,6 +12,7 @@ const qualityValue = document.getElementById('quality-value');
 const downloadAllBtn = document.getElementById('download-all-btn');
 
 let uploadedFiles = []; // {task_id, filename, metadata, file_size}
+let selectedDevice = 'x4'; // 'x4' (480x800) or 'x3' (528x792), both 4-level gray
 
 // ==================== Upload ====================
 
@@ -146,6 +147,15 @@ function removeFile(taskId, btn) {
 
 // ==================== Options ====================
 
+// Device toggle
+document.querySelectorAll('.device-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedDevice = btn.dataset.device;
+    });
+});
+
 // Preset profiles
 document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -271,6 +281,7 @@ async function startProcessing() {
 
 function getOptions() {
     return {
+        device: selectedDevice,
         grayscale: document.getElementById('opt-grayscale').checked,
         contrast: document.getElementById('opt-contrast').checked,
         quality: parseInt(qualitySlider.value),
@@ -286,6 +297,7 @@ function getOptions() {
 function processFile(taskId, options, editTitle, editAuthor) {
     return new Promise((resolve, reject) => {
         const params = new URLSearchParams({
+            device: options.device,
             grayscale: options.grayscale,
             contrast: options.contrast,
             quality: options.quality,
