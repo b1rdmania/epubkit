@@ -18,7 +18,7 @@
     <meta name="twitter:title" content="EPUB Kit — EPUB Optimizer for Xteink Readers">
     <meta name="twitter:description" content="Drop in any EPUB, get back a clean optimized file ready for your Xteink reader.">
 
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=4">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
 </head>
 <body>
@@ -207,6 +207,27 @@
                 </div>
             </div>
 
+            <div class="filename-control">
+                <label class="quality-label" for="opt-filename-format">Output filename</label>
+                <select id="opt-filename-format">
+                    <option value="original">Keep original</option>
+                    <option value="title-author">Title - Author</option>
+                    <option value="author-title" selected>Author - Title</option>
+                    <option value="title">Title only</option>
+                    <option value="custom">Custom template</option>
+                </select>
+                <div id="filename-template-row" hidden>
+                    <input
+                        type="text"
+                        id="opt-filename-template"
+                        value="{title} - {author}"
+                        maxlength="200"
+                        aria-label="Custom filename template"
+                    >
+                    <small>Placeholders: {title}, {author}, {year}, {original}</small>
+                </div>
+            </div>
+
             <button id="process-btn" class="process-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                     <polyline points="16 16 12 12 8 16"/>
@@ -240,6 +261,6 @@
         </footer>
     </div>
 
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=4"></script>
 </body>
 </html>

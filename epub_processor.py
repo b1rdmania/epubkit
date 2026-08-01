@@ -52,6 +52,9 @@ class ProcessingOptions:
     clean_metadata: bool = True
     text_cleanup: bool = True
     normalize_quotes: bool = True
+    filename_format: str = 'author-title'
+    filename_template: str = ''
+    original_filename: str = ''
     # Metadata edits (applied if non-empty)
     metadata_edits: dict = field(default_factory=dict)
 
@@ -410,7 +413,14 @@ def process_epub(input_path: str, output_path: str,
         final_metadata = extract_metadata(opf_tree)
         title = options.metadata_edits.get('title', final_metadata['title']) or final_metadata['title']
         author = options.metadata_edits.get('author', final_metadata['author']) or final_metadata['author']
-        report.output_filename = format_filename(title, author)
+        report.output_filename = format_filename(
+            title,
+            author,
+            filename_format=options.filename_format,
+            template=options.filename_template,
+            original_filename=options.original_filename,
+            year=final_metadata['year'],
+        )
 
         # Done
         report.optimized_size = os.path.getsize(output_path)

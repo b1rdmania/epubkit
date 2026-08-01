@@ -10,6 +10,9 @@ const processBtn = document.getElementById('process-btn');
 const qualitySlider = document.getElementById('opt-quality');
 const qualityValue = document.getElementById('quality-value');
 const downloadAllBtn = document.getElementById('download-all-btn');
+const filenameFormat = document.getElementById('opt-filename-format');
+const filenameTemplateRow = document.getElementById('filename-template-row');
+const filenameTemplate = document.getElementById('opt-filename-template');
 
 let uploadedFiles = []; // {task_id, filename, metadata, file_size}
 let selectedDevice = 'x4'; // 'x4' (480x800) or 'x3' (528x792), both 4-level gray
@@ -147,6 +150,10 @@ function removeFile(taskId, btn) {
 
 // ==================== Options ====================
 
+filenameFormat.addEventListener('change', () => {
+    filenameTemplateRow.hidden = filenameFormat.value !== 'custom';
+});
+
 // Device toggle
 document.querySelectorAll('.device-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -221,6 +228,7 @@ processBtn.addEventListener('click', startProcessing);
 async function startProcessing() {
     const validFiles = uploadedFiles.filter(f => f.task_id && !f.error);
     if (validFiles.length === 0) return;
+    if (!validateFilenameTemplate()) return;
 
     processBtn.disabled = true;
     processBtn.innerHTML = `
@@ -279,6 +287,31 @@ async function startProcessing() {
         Optimize EPUBs`;
 }
 
+function validateFilenameTemplate() {
+    filenameTemplate.setCustomValidity('');
+    if (filenameFormat.value !== 'custom') return true;
+
+    if (!filenameTemplate.value.trim()) {
+        filenameTemplate.setCustomValidity('Enter a custom filename template.');
+    } else {
+        const remainder = filenameTemplate.value
+            .replace(/\{\{|\}\}/g, '')
+            .replace(/\{(?:title|author|year|original)\}/g, '');
+        if (/[{}]/.test(remainder)) {
+            filenameTemplate.setCustomValidity(
+                'Use only {title}, {author}, {year}, and {original} placeholders.'
+            );
+        }
+    }
+
+    if (!filenameTemplate.checkValidity()) {
+        filenameTemplate.reportValidity();
+        filenameTemplate.focus();
+        return false;
+    }
+    return true;
+}
+
 function getOptions() {
     return {
         device: selectedDevice,
@@ -291,6 +324,8 @@ function getOptions() {
         generate_cover: document.getElementById('opt-cover').checked,
         clean_metadata: document.getElementById('opt-metadata').checked,
         text_cleanup: document.getElementById('opt-textcleanup').checked,
+        filename_format: filenameFormat.value,
+        filename_template: filenameTemplate.value,
     };
 }
 
@@ -309,6 +344,8 @@ function processFile(taskId, options, editTitle, editAuthor) {
             text_cleanup: options.text_cleanup,
             edit_title: editTitle,
             edit_author: editAuthor,
+            filename_format: options.filename_format,
+            filename_template: options.filename_template,
         });
 
         const eventSource = new EventSource(`/process/${taskId}?${params}`);

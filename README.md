@@ -29,7 +29,7 @@ epubkit runs a 20-step pipeline on every EPUB:
 | 17 | **Fix TOC** — validates the Table of Contents, generates one from chapter headings if missing |
 | 18 | **Clean OS artifacts** — removes .DS_Store, Thumbs.db, __MACOSX, desktop.ini, etc. |
 | 19 | **Repackage** — rebuilds the EPUB ZIP with correct mimetype entry and deflate compression |
-| 20 | **Output filename** — generates a clean `Author - Title.epub` filename from metadata |
+| 20 | **Output filename** — applies the selected filename preset or custom metadata template |
 
 ## Usage
 
@@ -37,8 +37,11 @@ epubkit runs a 20-step pipeline on every EPUB:
 2. **Edit** title/author if needed (auto-detected from metadata)
 3. **Pick your device**: X4 or X3 (sets screen size and grayscale depth)
 4. **Pick a preset**: Quick (images + text), Full (device-optimized), or Custom
-5. **Click Optimize** and watch real-time progress via SSE streaming
-6. **Download** the optimized EPUB — ready to transfer to your reader
+5. **Choose an output filename**: original, title/author presets, title only, or a custom template
+6. **Click Optimize** and watch real-time progress via SSE streaming
+7. **Download** the optimized EPUB — ready to transfer to your reader
+
+Custom filename templates support `{title}`, `{author}`, `{year}`, and `{original}` placeholders. Invalid filename characters are sanitized automatically.
 
 ## Processing presets
 

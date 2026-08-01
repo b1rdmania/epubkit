@@ -4,6 +4,7 @@ Handles: metadata extraction, cleanup, cover detection, filename formatting.
 """
 
 import re
+import string
 import unicodedata
 from pathlib import Path
 from typing import Optional
@@ -27,6 +28,15 @@ STORE_META_NAMES = {
 
 # Prefixes for metadata we want to strip
 STORE_META_PREFIXES = ('calibre:', 'ibooks:', 'amazon:', 'kindle:')
+
+FILENAME_FORMATS = {
+    'original',
+    'title-author',
+    'author-title',
+    'title',
+    'custom',
+}
+FILENAME_TEMPLATE_FIELDS = {'title', 'author', 'year', 'original'}
 
 
 def _find_dc(root, local_name, nsmap):
@@ -75,6 +85,7 @@ def extract_metadata(opf_tree: etree._ElementTree) -> dict:
     metadata = {
         'title': '',
         'author': '',
+        'year': '',
         'series': '',
         'series_index': '',
         'language': '',
@@ -91,6 +102,13 @@ def extract_metadata(opf_tree: etree._ElementTree) -> dict:
     creator_el = _find_dc(root, 'creator', nsmap)
     if creator_el is not None and creator_el.text:
         metadata['author'] = creator_el.text.strip()
+
+    # Publication year
+    date_el = _find_dc(root, 'date', nsmap)
+    if date_el is not None and date_el.text:
+        year_match = re.search(r'\b(\d{4})\b', date_el.text)
+        if year_match:
+            metadata['year'] = year_match.group(1)
 
     # Language
     lang_el = _find_dc(root, 'language', nsmap)
@@ -273,31 +291,69 @@ def strip_store_metadata(opf_tree: etree._ElementTree) -> int:
     return removed
 
 
-def format_filename(title: str, author: str) -> str:
+def format_filename(
+    title: str,
+    author: str,
+    filename_format: str = 'author-title',
+    template: str = '',
+    original_filename: str = '',
+    year: str = '',
+) -> str:
     """
-    Create a sanitized filename in 'Author - Title.epub' format.
-    Falls back gracefully if either field is missing.
+    Create a sanitized EPUB filename using a preset or custom template.
     """
     title = (title or '').strip()
     author = (author or '').strip()
+    year = (year or '').strip()
+    original = Path(original_filename or '').name
+    if original.lower().endswith('.epub'):
+        original = original[:-5]
 
-    if author and title:
-        name = f"{author} - {title}"
-    elif title:
+    if filename_format not in FILENAME_FORMATS:
+        raise ValueError(f"Unknown filename format: {filename_format}")
+
+    if filename_format == 'original':
+        name = original
+    elif filename_format == 'title-author':
+        name = _join_filename_parts(title, author)
+    elif filename_format == 'author-title':
+        name = _join_filename_parts(author, title)
+    elif filename_format == 'title':
         name = title
-    elif author:
-        name = author
     else:
+        if not template.strip():
+            raise ValueError("Custom filename template cannot be empty")
+        parsed_template = list(string.Formatter().parse(template))
+        if any(format_spec or conversion for _, _, format_spec, conversion in parsed_template):
+            raise ValueError("Filename template fields do not support formatting options")
+        fields = {field_name for _, field_name, _, _ in parsed_template if field_name}
+        unsupported = fields - FILENAME_TEMPLATE_FIELDS
+        if unsupported:
+            names = ', '.join(sorted(unsupported))
+            raise ValueError(f"Unknown filename template field: {names}")
+        name = template.format(
+            title=title,
+            author=author,
+            year=year,
+            original=original,
+        )
+
+    if name.lower().endswith('.epub'):
+        name = name[:-5]
+
+    name = _sanitize_filename(name)
+    if not name or name in {'.', '..'}:
         name = "optimized"
 
-    # Sanitize: remove/replace problematic characters
-    name = _sanitize_filename(name)
-
-    # Limit length (leave room for .epub extension)
     if len(name) > 200:
-        name = name[:200].rstrip()
+        name = name[:200].rstrip(' .-')
 
     return f"{name}.epub"
+
+
+def _join_filename_parts(first: str, second: str) -> str:
+    """Join available metadata fields without leaving an empty separator."""
+    return ' - '.join(part for part in (first, second) if part)
 
 
 def _sanitize_filename(name: str) -> str:
@@ -320,4 +376,4 @@ def _sanitize_filename(name: str) -> str:
     name = re.sub(r'\s+', ' ', name)
     name = re.sub(r'-{2,}', '-', name)
 
-    return name.strip()
+    return name.strip(' .-')
