@@ -36,7 +36,15 @@ FILENAME_FORMATS = {
     'title',
     'custom',
 }
-FILENAME_TEMPLATE_FIELDS = {'title', 'author', 'year', 'original'}
+FILENAME_TEMPLATE_FIELDS = {
+    'title',
+    'author',
+    'year',
+    'series',
+    'series_index',
+    'language',
+    'original',
+}
 
 
 def _find_dc(root, local_name, nsmap):
@@ -77,7 +85,7 @@ def _find_manifest(root):
 def extract_metadata(opf_tree: etree._ElementTree) -> dict:
     """
     Extract metadata from OPF document.
-    Returns dict with: title, author, series, series_index, language, cover_id, cover_href
+    Returns dict with: title, author, year, series, series_index, language, cover_id, cover_href
     """
     root = opf_tree.getroot()
     nsmap = _build_nsmap(root)
@@ -298,6 +306,9 @@ def format_filename(
     template: str = '',
     original_filename: str = '',
     year: str = '',
+    series: str = '',
+    series_index: str = '',
+    language: str = '',
 ) -> str:
     """
     Create a sanitized EPUB filename using a preset or custom template.
@@ -305,6 +316,9 @@ def format_filename(
     title = (title or '').strip()
     author = (author or '').strip()
     year = (year or '').strip()
+    series = (series or '').strip()
+    series_index = (series_index or '').strip()
+    language = (language or '').strip()
     original = Path(original_filename or '').name
     if original.lower().endswith('.epub'):
         original = original[:-5]
@@ -335,6 +349,9 @@ def format_filename(
             title=title,
             author=author,
             year=year,
+            series=series,
+            series_index=series_index,
+            language=language,
             original=original,
         )
 

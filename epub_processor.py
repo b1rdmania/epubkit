@@ -420,6 +420,9 @@ def process_epub(input_path: str, output_path: str,
             template=options.filename_template,
             original_filename=options.original_filename,
             year=final_metadata['year'],
+            series=final_metadata['series'],
+            series_index=final_metadata['series_index'],
+            language=final_metadata['language'],
         )
 
         # Done

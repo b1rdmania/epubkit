@@ -18,7 +18,7 @@
     <meta name="twitter:title" content="EPUB Kit — EPUB Optimizer for Xteink Readers">
     <meta name="twitter:description" content="Drop in any EPUB, get back a clean optimized file ready for your Xteink reader.">
 
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <link rel="stylesheet" href="/static/style.css?v=5">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
 </head>
 <body>
@@ -208,14 +208,14 @@
             </div>
 
             <div class="filename-control">
-                <label class="quality-label" for="opt-filename-format">Output filename</label>
-                <select id="opt-filename-format">
-                    <option value="original">Keep original</option>
-                    <option value="title-author">Title - Author</option>
-                    <option value="author-title" selected>Author - Title</option>
-                    <option value="title">Title only</option>
-                    <option value="custom">Custom template</option>
-                </select>
+                <label class="quality-label">Output filename</label>
+                <div class="quality-presets filename-presets">
+                    <button type="button" class="filename-format-btn" data-filename-format="original">Original</button>
+                    <button type="button" class="filename-format-btn" data-filename-format="title-author">Title - Author</button>
+                    <button type="button" class="filename-format-btn active" data-filename-format="author-title">Author - Title</button>
+                    <button type="button" class="filename-format-btn" data-filename-format="title">Title</button>
+                    <button type="button" class="filename-format-btn" data-filename-format="custom">Custom</button>
+                </div>
                 <div id="filename-template-row" hidden>
                     <input
                         type="text"
@@ -224,7 +224,7 @@
                         maxlength="200"
                         aria-label="Custom filename template"
                     >
-                    <small>Placeholders: {title}, {author}, {year}, {original}</small>
+                    <small>Placeholders: {title}, {author}, {year}, {series}, {series_index}, {language}, {original}</small>
                 </div>
             </div>
 
@@ -261,6 +261,6 @@
         </footer>
     </div>
 
-    <script src="/static/app.js?v=4"></script>
+    <script src="/static/app.js?v=5"></script>
 </body>
 </html>

@@ -41,7 +41,7 @@ epubkit runs a 20-step pipeline on every EPUB:
 6. **Click Optimize** and watch real-time progress via SSE streaming
 7. **Download** the optimized EPUB — ready to transfer to your reader
 
-Custom filename templates support `{title}`, `{author}`, `{year}`, and `{original}` placeholders. Invalid filename characters are sanitized automatically.
+Custom filename templates support `{title}`, `{author}`, `{year}`, `{series}`, `{series_index}`, `{language}`, and `{original}` placeholders. Invalid filename characters are sanitized automatically.
 
 ## Processing presets
 

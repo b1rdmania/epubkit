@@ -37,6 +37,20 @@ class FormatFilenameTests(unittest.TestCase):
             "2026 - The Book - A-Writer [source].epub",
         )
 
+    def test_custom_template_supports_series_and_language(self):
+        self.assertEqual(
+            format_filename(
+                "The Book",
+                "A. Writer",
+                "custom",
+                "{series} {series_index} - {title} ({language})",
+                series="Saga",
+                series_index="2",
+                language="en",
+            ),
+            "Saga 2 - The Book (en).epub",
+        )
+
     def test_missing_metadata_and_unsafe_names_fall_back_safely(self):
         self.assertEqual(format_filename("", "", "title-author"), "optimized.epub")
         self.assertEqual(
@@ -46,7 +60,7 @@ class FormatFilenameTests(unittest.TestCase):
 
     def test_custom_template_rejects_unknown_fields(self):
         with self.assertRaisesRegex(ValueError, "Unknown filename template field"):
-            format_filename("Book", "Writer", "custom", "{series}")
+            format_filename("Book", "Writer", "custom", "{publisher}")
 
     def test_custom_template_rejects_formatting_options(self):
         with self.assertRaisesRegex(ValueError, "do not support formatting options"):

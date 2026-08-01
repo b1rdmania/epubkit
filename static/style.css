@@ -298,7 +298,8 @@ h2 {
     flex-wrap: wrap;
 }
 
-.file-edit input {
+.file-edit input,
+#opt-filename-template {
     font-family: inherit;
     font-size: 13px;
     padding: 6px 10px;
@@ -311,7 +312,8 @@ h2 {
     transition: border-color var(--transition);
 }
 
-.file-edit input:focus {
+.file-edit input:focus,
+#opt-filename-template:focus {
     outline: none;
     border-color: var(--accent);
 }
@@ -507,23 +509,9 @@ h2 {
     margin-bottom: 24px;
 }
 
-.filename-control select,
-.filename-control input {
+#opt-filename-template {
     width: 100%;
     box-sizing: border-box;
-    font: inherit;
-    font-size: 13px;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    color: var(--text);
-}
-
-.filename-control select:focus,
-.filename-control input:focus {
-    outline: none;
-    border-color: var(--accent);
 }
 
 #filename-template-row {
@@ -535,6 +523,14 @@ h2 {
     margin-top: 5px;
     color: var(--text-muted);
     font-size: 11px;
+}
+
+.filename-presets {
+    flex-wrap: wrap;
+}
+
+.filename-format-btn {
+    min-width: 90px;
 }
 
 .quality-label {
@@ -551,7 +547,8 @@ h2 {
     margin-bottom: 10px;
 }
 
-.quality-btn {
+.quality-btn,
+.filename-format-btn {
     flex: 1;
     padding: 6px;
     border: 1px solid var(--border);
@@ -563,12 +560,14 @@ h2 {
     transition: all var(--transition);
 }
 
-.quality-btn:hover {
+.quality-btn:hover,
+.filename-format-btn:hover {
     background: var(--bg);
     border-color: var(--border-hover);
 }
 
-.quality-btn.active {
+.quality-btn.active,
+.filename-format-btn.active {
     background: var(--accent);
     color: #fff;
     border-color: var(--accent);

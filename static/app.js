@@ -10,12 +10,12 @@ const processBtn = document.getElementById('process-btn');
 const qualitySlider = document.getElementById('opt-quality');
 const qualityValue = document.getElementById('quality-value');
 const downloadAllBtn = document.getElementById('download-all-btn');
-const filenameFormat = document.getElementById('opt-filename-format');
 const filenameTemplateRow = document.getElementById('filename-template-row');
 const filenameTemplate = document.getElementById('opt-filename-template');
 
 let uploadedFiles = []; // {task_id, filename, metadata, file_size}
 let selectedDevice = 'x4'; // 'x4' (480x800) or 'x3' (528x792), both 4-level gray
+let selectedFilenameFormat = 'author-title';
 
 // ==================== Upload ====================
 
@@ -150,8 +150,14 @@ function removeFile(taskId, btn) {
 
 // ==================== Options ====================
 
-filenameFormat.addEventListener('change', () => {
-    filenameTemplateRow.hidden = filenameFormat.value !== 'custom';
+document.querySelectorAll('.filename-format-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filename-format-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedFilenameFormat = btn.dataset.filenameFormat;
+        filenameTemplateRow.hidden = selectedFilenameFormat !== 'custom';
+        if (selectedFilenameFormat === 'custom') filenameTemplate.focus();
+    });
 });
 
 // Device toggle
@@ -289,17 +295,17 @@ async function startProcessing() {
 
 function validateFilenameTemplate() {
     filenameTemplate.setCustomValidity('');
-    if (filenameFormat.value !== 'custom') return true;
+    if (selectedFilenameFormat !== 'custom') return true;
 
     if (!filenameTemplate.value.trim()) {
         filenameTemplate.setCustomValidity('Enter a custom filename template.');
     } else {
         const remainder = filenameTemplate.value
             .replace(/\{\{|\}\}/g, '')
-            .replace(/\{(?:title|author|year|original)\}/g, '');
+            .replace(/\{(?:title|author|year|series|series_index|language|original)\}/g, '');
         if (/[{}]/.test(remainder)) {
             filenameTemplate.setCustomValidity(
-                'Use only {title}, {author}, {year}, and {original} placeholders.'
+                'Use only the placeholders listed below the template.'
             );
         }
     }
@@ -324,7 +330,7 @@ function getOptions() {
         generate_cover: document.getElementById('opt-cover').checked,
         clean_metadata: document.getElementById('opt-metadata').checked,
         text_cleanup: document.getElementById('opt-textcleanup').checked,
-        filename_format: filenameFormat.value,
+        filename_format: selectedFilenameFormat,
         filename_template: filenameTemplate.value,
     };
 }
