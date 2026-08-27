@@ -18,7 +18,7 @@
     <meta name="twitter:title" content="EPUB Kit — EPUB Optimizer for Xteink Readers">
     <meta name="twitter:description" content="Drop in any EPUB, get back a clean optimized file ready for your Xteink reader.">
 
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=5">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
 </head>
 <body>
@@ -207,6 +207,27 @@
                 </div>
             </div>
 
+            <div class="filename-control">
+                <label class="quality-label">Output filename</label>
+                <div class="quality-presets filename-presets">
+                    <button type="button" class="filename-format-btn" data-filename-format="original">Original</button>
+                    <button type="button" class="filename-format-btn" data-filename-format="title-author">Title - Author</button>
+                    <button type="button" class="filename-format-btn active" data-filename-format="author-title">Author - Title</button>
+                    <button type="button" class="filename-format-btn" data-filename-format="title">Title</button>
+                    <button type="button" class="filename-format-btn" data-filename-format="custom">Custom</button>
+                </div>
+                <div id="filename-template-row" hidden>
+                    <input
+                        type="text"
+                        id="opt-filename-template"
+                        value="{title} - {author}"
+                        maxlength="200"
+                        aria-label="Custom filename template"
+                    >
+                    <small>Placeholders: {title}, {author}, {year}, {series}, {series_index}, {language}, {original}</small>
+                </div>
+            </div>
+
             <button id="process-btn" class="process-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                     <polyline points="16 16 12 12 8 16"/>
@@ -240,6 +261,6 @@
         </footer>
     </div>
 
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=5"></script>
 </body>
 </html>

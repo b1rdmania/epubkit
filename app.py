@@ -20,6 +20,7 @@ from starlette.requests import Request
 
 from epub_processor import process_epub, extract_epub_metadata, ProcessingOptions, ProcessingReport
 from image_processor import DEVICE_PROFILES
+from metadata_handler import FILENAME_FORMATS, format_filename
 
 app = FastAPI(title="epubkit")
 
@@ -146,6 +147,8 @@ async def process_sse(
     text_cleanup: bool = True,
     edit_title: str = "",
     edit_author: str = "",
+    filename_format: str = "author-title",
+    filename_template: str = "",
 ):
     """SSE endpoint that streams processing progress."""
     if task_id not in tasks:
@@ -158,6 +161,24 @@ async def process_sse(
     if device not in DEVICE_PROFILES:
         allowed = ", ".join(f"'{d}'" for d in DEVICE_PROFILES)
         raise HTTPException(status_code=400, detail=f"Unknown device (expected {allowed})")
+    if filename_format not in FILENAME_FORMATS:
+        raise HTTPException(status_code=400, detail="Unknown filename format")
+    if filename_format == "custom" and not filename_template.strip():
+        raise HTTPException(status_code=400, detail="Custom filename template cannot be empty")
+    if len(filename_template) > 200:
+        raise HTTPException(status_code=400, detail="Filename template is too long")
+    if filename_format == "custom":
+        try:
+            format_filename(
+                "title",
+                "author",
+                filename_format="custom",
+                template=filename_template,
+                original_filename="original.epub",
+                year="2026",
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
     input_path = task["file_path"]
     out_dir = OUTPUT_DIR / task_id
@@ -175,6 +196,9 @@ async def process_sse(
         generate_missing_cover=generate_cover,
         clean_metadata=clean_metadata,
         text_cleanup=text_cleanup,
+        filename_format=filename_format,
+        filename_template=filename_template,
+        original_filename=task["filename"],
     )
 
     if edit_title or edit_author:
