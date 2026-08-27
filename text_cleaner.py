@@ -9,6 +9,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from lxml import etree
 
+from html_cleaner import recovery_parser
+
 
 @dataclass
 class TextCleanReport:
@@ -94,6 +96,23 @@ MOJIBAKE_PATTERNS = {
     '\u00c2\u00bb': '\u00bb',  # right guillemet
     '\u00c2\u00ab': '\u00ab',  # left guillemet
     '\u00c2\u00b0': '\u00b0',  # degree sign
+    # cp1252 punctuation read as latin-1. Three bytes, so these must be
+    # tried before the two-byte patterns above can match their prefix.
+    '\u00e2\u0080\u0099': '\u2019',  # right single quote
+    '\u00e2\u0080\u0098': '\u2018',  # left single quote
+    '\u00e2\u0080\u009c': '\u201c',  # left double quote
+    '\u00e2\u0080\u009d': '\u201d',  # right double quote
+    '\u00e2\u0080\u0094': '\u2014',  # em dash
+    '\u00e2\u0080\u0093': '\u2013',  # en dash
+    '\u00e2\u0080\u00a6': '\u2026',  # ellipsis
+    '\u00c3\u009f': '\u00df',  # sharp s
+    '\u00c3\u00a1': '\u00e1',  # a-acute
+    '\u00c3\u00ad': '\u00ed',  # i-acute
+    '\u00c3\u00b3': '\u00f3',  # o-acute
+    '\u00c3\u00ba': '\u00fa',  # u-acute
+    '\u00c3\u0084': '\u00c4',  # A-umlaut
+    '\u00c3\u0096': '\u00d6',  # O-umlaut
+    '\u00c3\u009c': '\u00dc',  # U-umlaut
 }
 
 # Tags whose text content should not be modified
@@ -138,7 +157,7 @@ def _fix_ocr_artifacts(text: str, normalize_quotes: bool = True) -> tuple[str, i
 def _fix_mojibake(text: str) -> tuple[str, int]:
     """Detect and repair common mojibake patterns."""
     count = 0
-    for broken, fixed in MOJIBAKE_PATTERNS.items():
+    for broken, fixed in sorted(MOJIBAKE_PATTERNS.items(), key=lambda kv: -len(kv[0])):
         if broken in text:
             n = text.count(broken)
             text = text.replace(broken, fixed)
@@ -186,7 +205,7 @@ def clean_text_content(xhtml_bytes: bytes, options: TextCleanOptions = None) -> 
     try:
         tree = etree.fromstring(xhtml_bytes)
     except etree.XMLSyntaxError:
-        parser = etree.HTMLParser(recover=True)
+        parser = recovery_parser(xhtml_bytes)
         tree = etree.fromstring(xhtml_bytes, parser)
         if tree is None:
             return xhtml_bytes, report

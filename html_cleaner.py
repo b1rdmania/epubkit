@@ -24,6 +24,22 @@ FONT_MEDIA_TYPES = {
 }
 
 
+def recovery_parser(xhtml_bytes: bytes = b'') -> etree.HTMLParser:
+    """
+    Build lxml's recovery parser with an explicit encoding.
+
+    libxml2 assumes ISO-8859-1 when a document declares no charset, which
+    turns valid UTF-8 into mojibake ('ä' reads as 'Ã¤'). EPUB content
+    documents are UTF-8, so state it. Bytes that are not valid UTF-8 fall
+    back to sniffing rather than being mangled the other way.
+    """
+    try:
+        xhtml_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        return etree.HTMLParser(recover=True)
+    return etree.HTMLParser(recover=True, encoding='utf-8')
+
+
 def repair_html(html_bytes: bytes) -> bytes:
     """
     Repair malformed HTML/XHTML using lxml's recovery parser.
@@ -38,7 +54,7 @@ def repair_html(html_bytes: bytes) -> bytes:
         pass
 
     # Fall back to HTML parser with recovery
-    parser = etree.HTMLParser(recover=True, encoding='utf-8')
+    parser = recovery_parser(html_bytes)
     try:
         tree = etree.fromstring(html_bytes, parser)
     except Exception:
@@ -124,7 +140,7 @@ def collect_used_selectors(xhtml_bytes: bytes) -> tuple[set, set, set]:
     elements = set()
 
     try:
-        parser = etree.HTMLParser(recover=True)
+        parser = recovery_parser(xhtml_bytes)
         tree = etree.fromstring(xhtml_bytes, parser)
     except Exception:
         return classes, ids, elements
@@ -199,7 +215,7 @@ def normalize_whitespace(xhtml_bytes: bytes) -> tuple[bytes, int]:
     try:
         tree = etree.fromstring(xhtml_bytes)
     except etree.XMLSyntaxError:
-        parser = etree.HTMLParser(recover=True)
+        parser = recovery_parser(xhtml_bytes)
         tree = etree.fromstring(xhtml_bytes, parser)
         if tree is None:
             return xhtml_bytes, 0
@@ -281,7 +297,7 @@ def strip_unnecessary_attributes(xhtml_bytes: bytes) -> tuple[bytes, int]:
     try:
         tree = etree.fromstring(xhtml_bytes)
     except etree.XMLSyntaxError:
-        parser = etree.HTMLParser(recover=True)
+        parser = recovery_parser(xhtml_bytes)
         tree = etree.fromstring(xhtml_bytes, parser)
         if tree is None:
             return xhtml_bytes, 0
