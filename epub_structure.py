@@ -10,6 +10,8 @@ from urllib.parse import unquote, quote
 
 from lxml import etree
 
+from html_cleaner import recovery_parser
+
 NAMESPACES = {
     'opf': 'http://www.idpf.org/2007/opf',
     'dc': 'http://purl.org/dc/elements/1.1/',
@@ -157,7 +159,8 @@ def update_xhtml_references(xhtml_path: str, rename_map: dict) -> int:
     try:
         tree = etree.parse(xhtml_path)
     except etree.XMLSyntaxError:
-        parser = etree.HTMLParser(recover=True)
+        with open(xhtml_path, 'rb') as fh:
+            parser = recovery_parser(fh.read())
         tree = etree.parse(xhtml_path, parser)
 
     root = tree.getroot()
