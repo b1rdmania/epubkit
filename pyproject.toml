@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "epubkit"
+version = "0.2.0"
+description = "High-performance EPUB optimizer for E-ink readers"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.31",
+    "pillow>=10.0.0",
+    "lxml>=5.0.0",
+    "cssutils>=2.11.0",
+    "aiofiles>=24.1.0",
+    "jinja2>=3.1.0",
+]
+
+[project.scripts]
+epubkit = "cli:main"

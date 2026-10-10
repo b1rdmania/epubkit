@@ -9,3 +9,6 @@ build/
 .venv/
 venv/
 *.epub
+target/
+.pytest_cache/
+

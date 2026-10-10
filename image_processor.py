@@ -21,6 +21,12 @@ from dataclasses import dataclass, field
 
 from PIL import Image, ImageEnhance, ImageOps, ImageDraw, ImageFont
 
+try:
+    import epubkit_rs
+    HAVE_RUST = True
+except ImportError:
+    HAVE_RUST = False
+
 
 # Device screen profiles in display orientation (portrait), matching the
 # CrossPoint reference converter (X4: 480x800, X3: 528x792). The panels scan
@@ -72,6 +78,7 @@ class ImageOptions:
     gray_levels: list = field(default_factory=lambda: list(EINK_PALETTE_LEVELS))
     light_novel_mode: bool = False
     light_novel_rotate_left: bool = True
+    optimize_jpeg: bool = False
 
     @classmethod
     def for_device(cls, device: str, **overrides) -> 'ImageOptions':
@@ -117,9 +124,16 @@ def _quantize_to_levels(img: Image.Image, levels: list[int]) -> Image.Image:
     Quantize grayscale image to the device's e-ink levels with
     Floyd-Steinberg dithering (e.g. [0, 85, 170, 255] for the SSD1677
     4-level palette; any level count works, e.g. [0, 255] for 1-bit).
-    Uses PIL's built-in quantize with a custom palette for speed.
+    Uses fast Rust implementation if available, otherwise PIL quantize.
     """
-    # Build a grayscale palette image from the device levels
+    if HAVE_RUST and img.mode == 'L':
+        try:
+            dithered = epubkit_rs.dither_grayscale_fs(img.tobytes(), img.width, img.height, list(levels))
+            return Image.frombytes('L', img.size, dithered)
+        except Exception:
+            pass
+
+    # Fallback: Build a grayscale palette image from the device levels
     palette_img = Image.new('P', (1, 1))
     palette = []
     for level in levels:
@@ -237,24 +251,27 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
 
         orig_w, orig_h = current_img.size
 
-        # Enforce 1024x1024 hard limit (Xteink JPEG spec)
-        if orig_w > MAX_IMAGE_DIMENSION or orig_h > MAX_IMAGE_DIMENSION:
-            current_img.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION),
-                                  Image.Resampling.LANCZOS)
-            clamped_w, clamped_h = current_img.size
-            details_parts.append(f"clamped {orig_w}x{orig_h}→{clamped_w}x{clamped_h}")
-            orig_w, orig_h = clamped_w, clamped_h
-
-        # Resize to fit device screen
-        if orig_w > options.max_width or orig_h > options.max_height:
-            current_img.thumbnail((options.max_width, options.max_height),
-                                  Image.Resampling.LANCZOS)
-            new_w, new_h = current_img.size
-            details_parts.append(f"resized {orig_w}x{orig_h}→{new_w}x{new_h}")
-
-        # Convert to grayscale
-        if options.grayscale:
+        # Convert to grayscale first if enabled (3x faster resizing for 1-channel vs 3-channel)
+        if options.grayscale and current_img.mode != 'L':
             current_img = current_img.convert('L')
+
+        # Determine target bounding box
+        target_w = min(options.max_width, MAX_IMAGE_DIMENSION)
+        target_h = min(options.max_height, MAX_IMAGE_DIMENSION)
+
+        # Single resize step to fit device screen
+        if orig_w > target_w or orig_h > target_h:
+            current_img.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+            new_w, new_h = current_img.size
+            if orig_w > MAX_IMAGE_DIMENSION or orig_h > MAX_IMAGE_DIMENSION:
+                details_parts.append(f"clamped & resized {orig_w}x{orig_h}→{new_w}x{new_h}")
+            else:
+                details_parts.append(f"resized {orig_w}x{orig_h}→{new_w}x{new_h}")
+
+        # Grayscale processing & quantization
+        if options.grayscale:
+            if current_img.mode != 'L':
+                current_img = current_img.convert('L')
 
             # Contrast enhancement (before quantization for best results)
             if options.contrast_boost:
@@ -293,7 +310,7 @@ def process_image(image_bytes: bytes, filename: str, options: ImageOptions = Non
             format='JPEG',
             quality=options.quality,
             progressive=False,
-            optimize=True,
+            optimize=options.optimize_jpeg,
             # 4:2:0 for grayscale (all 3 channels identical, saves ~15-20%)
             # 4:4:4 for color images
             subsampling=2 if options.grayscale else 0
