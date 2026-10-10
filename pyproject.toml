@@ -7,7 +7,7 @@ name = "epubkit"
 version = "0.2.0"
 description = "High-performance EPUB optimizer for E-ink readers"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
