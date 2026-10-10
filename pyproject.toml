@@ -1,6 +1,6 @@
 [build-system]
-requires = ["maturin>=1.5,<2.0"]
-build-backend = "maturin"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "epubkit"
@@ -21,3 +21,16 @@ dependencies = [
 
 [project.scripts]
 epubkit = "cli:main"
+
+[tool.setuptools]
+py-modules = [
+    "cli",
+    "epub_processor",
+    "image_processor",
+    "html_cleaner",
+    "text_cleaner",
+    "epub_structure",
+    "epub_packager",
+    "metadata_handler",
+    "app",
+]
