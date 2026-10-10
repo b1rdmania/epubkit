@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "setuptools-rust>=1.6.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -23,6 +23,7 @@ dependencies = [
 epubkit = "cli:main"
 
 [tool.setuptools]
+packages = ["epubkit"]
 py-modules = [
     "cli",
     "epub_processor",
@@ -34,3 +35,8 @@ py-modules = [
     "metadata_handler",
     "app",
 ]
+
+[[tool.setuptools-rust.ext-modules]]
+target = "epubkit_rs"
+path = "Cargo.toml"
+binding = "PyO3"

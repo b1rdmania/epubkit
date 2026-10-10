@@ -9,7 +9,7 @@ import time
 import argparse
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union, Dict
 
 from epub_processor import (
     process_epub,
@@ -22,10 +22,15 @@ from image_processor import DEVICE_PROFILES, DEFAULT_DEVICE
 from metadata_handler import FILENAME_FORMATS
 
 
-def find_epub_files(paths: List[str], recursive: bool = True) -> List[Path]:
+def find_epub_files(
+    paths: List[str],
+    recursive: bool = True,
+    exclude_paths: Optional[List[Union[str, Path]]] = None,
+) -> List[Path]:
     """Find all valid .epub files in the given paths (files or directories)."""
     found: List[Path] = []
     seen = set()
+    excludes = [Path(e).expanduser().resolve() for e in (exclude_paths or [])]
 
     for p_str in paths:
         p = Path(p_str).expanduser().resolve()
@@ -35,15 +40,26 @@ def find_epub_files(paths: List[str], recursive: bool = True) -> List[Path]:
 
         if p.is_file():
             if p.suffix.lower() == '.epub' and not p.name.lower().endswith('.kepub.epub'):
+                if any(p == ex or ex in p.parents for ex in excludes):
+                    continue
                 if p not in seen:
                     seen.add(p)
                     found.append(p)
         elif p.is_dir():
+            if any(p == ex for ex in excludes):
+                continue
             pattern = '**/*.epub' if recursive else '*.epub'
             for match in p.glob(pattern):
                 if match.is_file() and not match.name.lower().endswith('.kepub.epub'):
-                    # Skip files in hidden directories
-                    if any(part.startswith('.') for part in match.parts):
+                    # Skip files in hidden directories relative to input root p
+                    try:
+                        rel = match.relative_to(p)
+                    except ValueError:
+                        continue
+                    if any(part.startswith('.') for part in rel.parts):
+                        continue
+                    # Skip files located within excluded directories
+                    if any(match == ex or ex in match.parents for ex in excludes):
                         continue
                     if match not in seen:
                         seen.add(match)
@@ -56,6 +72,8 @@ def _process_single_epub_task(args: Tuple[str, str, ProcessingOptions, bool]) ->
     """Worker task for multiprocessing batch execution."""
     src_path, dst_path, options, overwrite = args
     t0 = time.perf_counter()
+
+    os.makedirs(os.path.dirname(os.path.abspath(dst_path)), exist_ok=True)
 
     if not overwrite and os.path.exists(dst_path) and os.path.getsize(dst_path) > 0:
         report = ProcessingReport(
@@ -95,12 +113,6 @@ def batch_optimize(
     Batch optimize all EPUB files in the specified input paths.
     Returns (success_count, fail_count, results).
     """
-    epub_files = find_epub_files(input_paths, recursive=recursive)
-    if not epub_files:
-        if not quiet:
-            print("No EPUB files found in the specified paths.")
-        return 0, 0, []
-
     if output_dir:
         out_path = Path(output_dir).expanduser().resolve()
         out_path.mkdir(parents=True, exist_ok=True)
@@ -113,6 +125,12 @@ def batch_optimize(
         else:
             out_path = first_input.parent / "optimized"
             out_path.mkdir(parents=True, exist_ok=True)
+
+    epub_files = find_epub_files(input_paths, recursive=recursive, exclude_paths=[out_path])
+    if not epub_files:
+        if not quiet:
+            print("No EPUB files found in the specified paths.")
+        return 0, 0, []
 
     # Build options
     overrides = options_overrides or {}
@@ -134,14 +152,41 @@ def batch_optimize(
         print(f" - Parallelism  : {workers} workers")
         print(f"=======================================================\n")
 
+    # Map input directories to preserve relative subpaths
+    input_dirs = [
+        Path(p_str).expanduser().resolve()
+        for p_str in input_paths
+        if Path(p_str).expanduser().resolve().is_dir()
+    ]
+
     # Prepare tasks
     tasks = []
+    seen_destinations: Dict[str, str] = {}
     for src in epub_files:
-        dst = out_path / src.name
+        rel_path = None
+        for in_dir in input_dirs:
+            try:
+                rel_path = src.relative_to(in_dir)
+                break
+            except ValueError:
+                continue
+
+        if rel_path is not None:
+            dst = out_path / rel_path
+        else:
+            dst = out_path / src.name
+
+        dst_str = str(dst)
+        if dst_str in seen_destinations:
+            raise ValueError(
+                f"Duplicate destination path '{dst_str}' for distinct inputs: '{seen_destinations[dst_str]}' and '{src}'"
+            )
+        seen_destinations[dst_str] = str(src)
+
         # Clone options for this specific file
         file_opts = ProcessingOptions(**vars(base_options))
         file_opts.original_filename = src.name
-        tasks.append((str(src), str(dst), file_opts, overwrite))
+        tasks.append((str(src), dst_str, file_opts, overwrite))
 
     start_time = time.perf_counter()
     results: List[Tuple[str, str, ProcessingReport, float]] = []
@@ -301,6 +346,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--remove-css",
         action="store_true",
+        dest="remove_unused_css",
         default=None,
         help="Strip unused CSS rules.",
     )

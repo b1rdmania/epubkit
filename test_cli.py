@@ -120,4 +120,44 @@ def test_cli_main_invocation(sample_epubs_dir):
 
     assert os.path.exists(out_dir / "book1.epub")
     assert os.path.exists(out_dir / "book2.epub")
-    assert os.path.exists(out_dir / "book3.epub")
+    assert os.path.exists(out_dir / "subdir" / "book3.epub")
+
+
+def test_epubkit_package_import_and_main(sample_epubs_dir):
+    import epubkit
+    assert epubkit.__version__ == "0.2.0"
+
+    import epubkit.__main__ as epubkit_main
+    assert callable(epubkit_main.main)
+
+
+def test_find_epub_files_hidden_dir_and_excludes(sample_epubs_dir):
+    # Add a hidden subdir
+    hidden_dir = sample_epubs_dir / ".hidden"
+    hidden_dir.mkdir(exist_ok=True)
+    build_epub(os.path.join(hidden_dir, "hidden.epub"))
+
+    # Also add an excluded output dir
+    out_dir = sample_epubs_dir / "out"
+    out_dir.mkdir(exist_ok=True)
+    build_epub(os.path.join(out_dir, "output.epub"))
+
+    found = find_epub_files([str(sample_epubs_dir)], recursive=True, exclude_paths=[out_dir])
+    names = [p.name for p in found]
+    assert "hidden.epub" not in names
+    assert "output.epub" not in names
+    assert "book1.epub" in names
+
+
+def test_cli_parser_remove_css_flag():
+    parser = create_parser()
+    args_default = parser.parse_args(["/path/to/books"])
+    assert args_default.remove_unused_css is None
+
+    args_remove = parser.parse_args(["/path/to/books", "--remove-css"])
+    assert args_remove.remove_unused_css is True
+
+    args_keep = parser.parse_args(["/path/to/books", "--keep-css"])
+    assert args_keep.remove_unused_css is False
+
+

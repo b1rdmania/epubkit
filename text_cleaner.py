@@ -224,7 +224,7 @@ def clean_text_content(xhtml_bytes: bytes, options: TextCleanOptions = None) -> 
         if HAVE_RUST and (options.fix_whitespace or options.fix_ocr or options.fix_encoding):
             text, ds, ocr, q, moj, _ = epubkit_rs.clean_text_fast(
                 text,
-                bool(options.normalize_quotes),
+                bool(options.normalize_quotes and options.fix_ocr),
                 bool(options.fix_whitespace),
                 bool(options.fix_ocr),
                 bool(options.fix_encoding),

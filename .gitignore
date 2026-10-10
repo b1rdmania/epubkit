@@ -58,6 +58,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Temporary files and output EPUBs
+tmp/
+*.epub
+
 # Distribution / packaging
 .Python
 build/
