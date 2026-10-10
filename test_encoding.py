@@ -93,6 +93,7 @@ def test_mojibake_table_repairs_umlauts_and_sharp_s():
 
 
 def test_text_cleaning_parity_punctuation_spacing_and_counts():
+    """Rust cleaner matches Python whitespace/punctuation output and counts."""
     try:
         import epubkit_rs
     except ImportError:
@@ -114,6 +115,7 @@ def test_text_cleaning_parity_punctuation_spacing_and_counts():
 
 
 def test_text_cleaning_parity_mojibake_and_quotes():
+    """Rust cleaner matches expected mojibake/quote/OCR reconstruction."""
     try:
         import epubkit_rs
     except ImportError:
@@ -135,6 +137,7 @@ def test_text_cleaning_parity_mojibake_and_quotes():
 
 
 def test_text_cleaning_parity_fix_ocr_false():
+    """Rust cleaner is a no-op for quotes/ligatures when fix_ocr is off."""
     try:
         import epubkit_rs
     except ImportError:

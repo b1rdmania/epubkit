@@ -124,6 +124,7 @@ def test_cli_main_invocation(sample_epubs_dir):
 
 
 def test_epubkit_package_import_and_main(sample_epubs_dir):
+    """Package exposes version and runnable entry point."""
     import epubkit
     assert epubkit.__version__ == "0.2.0"
 
@@ -132,6 +133,7 @@ def test_epubkit_package_import_and_main(sample_epubs_dir):
 
 
 def test_find_epub_files_hidden_dir_and_excludes(sample_epubs_dir):
+    """Hidden dirs are skipped and exclude_paths are honored."""
     # Add a hidden subdir
     hidden_dir = sample_epubs_dir / ".hidden"
     hidden_dir.mkdir(exist_ok=True)
@@ -150,6 +152,7 @@ def test_find_epub_files_hidden_dir_and_excludes(sample_epubs_dir):
 
 
 def test_cli_parser_remove_css_flag():
+    """--remove-css/--keep-css map to remove_unused_css tri-state."""
     parser = create_parser()
     args_default = parser.parse_args(["/path/to/books"])
     assert args_default.remove_unused_css is None
