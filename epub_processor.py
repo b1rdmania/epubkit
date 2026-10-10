@@ -35,6 +35,40 @@ from epub_structure import (
 )
 
 
+PRESETS = {
+    'quick': {
+        'grayscale': True,
+        'contrast_boost': True,
+        'contrast_factor': 1.5,
+        'quality': 70,
+        'eink_quantize': True,
+        'remove_fonts': False,
+        'remove_unused_css': False,
+        'generate_missing_cover': False,
+        'clean_metadata': False,
+        'text_cleanup': True,
+        'normalize_quotes': True,
+        'light_novel_mode': False,
+        'optimize_jpeg': False,
+    },
+    'full': {
+        'grayscale': True,
+        'contrast_boost': True,
+        'contrast_factor': 1.5,
+        'quality': 70,
+        'eink_quantize': True,
+        'remove_fonts': True,
+        'remove_unused_css': True,
+        'generate_missing_cover': True,
+        'clean_metadata': True,
+        'text_cleanup': True,
+        'normalize_quotes': True,
+        'light_novel_mode': False,
+        'optimize_jpeg': False,
+    },
+}
+
+
 @dataclass
 class ProcessingOptions:
     """All user-configurable processing options."""
@@ -52,11 +86,19 @@ class ProcessingOptions:
     clean_metadata: bool = True
     text_cleanup: bool = True
     normalize_quotes: bool = True
+    optimize_jpeg: bool = False
     filename_format: str = 'author-title'
     filename_template: str = ''
     original_filename: str = ''
     # Metadata edits (applied if non-empty)
     metadata_edits: dict = field(default_factory=dict)
+
+    @classmethod
+    def for_preset(cls, preset: str = 'quick', **overrides) -> 'ProcessingOptions':
+        """Build ProcessingOptions from a preset profile ('quick' or 'full')."""
+        base = PRESETS.get(preset, PRESETS['quick']).copy()
+        base.update(overrides)
+        return cls(**base)
 
 
 @dataclass
@@ -196,26 +238,32 @@ def process_epub(input_path: str, output_path: str,
             eink_quantize=options.eink_quantize,
             light_novel_mode=options.light_novel_mode,
             light_novel_rotate_left=options.light_novel_rotate_left,
+            optimize_jpeg=options.optimize_jpeg,
         )
 
         image_files = content_files['images']
         report.images_total = len(image_files)
         processed_images = {}  # old_rel_path -> new_filename
 
-        for i, img_path in enumerate(image_files):
-            pct = 15 + int(45 * (i / max(len(image_files), 1)))
-            _progress(pct, f"Processing image {i + 1}/{len(image_files)}...")
-
-            if not os.path.exists(img_path):
-                continue
-
+        def _process_one_image(img_path):
+            if not os.path.exists(img_path) or not should_process(img_path):
+                return img_path, []
             with open(img_path, 'rb') as f:
                 img_bytes = f.read()
-
-            if not should_process(img_path):
-                continue
-
             results = process_image(img_bytes, Path(img_path).name, image_options)
+            return img_path, results
+
+        if len(image_files) > 1:
+            from concurrent.futures import ThreadPoolExecutor
+            max_workers = min(8, len(image_files))
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                all_image_results = list(pool.map(_process_one_image, image_files))
+        else:
+            all_image_results = [_process_one_image(p) for p in image_files]
+
+        for i, (img_path, results) in enumerate(all_image_results):
+            pct = 15 + int(45 * ((i + 1) / max(len(image_files), 1)))
+            _progress(pct, f"Processing image {i + 1}/{len(image_files)}...")
 
             for j, result in enumerate(results):
                 if result.was_converted:

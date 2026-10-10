@@ -31,7 +31,38 @@ epubkit runs a 20-step pipeline on every EPUB:
 | 19 | **Repackage** — rebuilds the EPUB ZIP with correct mimetype entry and deflate compression |
 | 20 | **Output filename** — applies the selected filename preset or custom metadata template |
 
-## Usage
+## CLI Batch Usage
+
+You can optimize folders of EPUBs in batch using the high-performance CLI:
+
+```bash
+# Optimize all EPUB files in a directory (default: preset quick, target device X4, parallel CPU workers)
+python cli.py /path/to/books
+
+# Specify output directory and preset
+python cli.py /path/to/books -o /path/to/output --preset quick
+
+# Target Xteink X3 with full preset and custom worker pool
+python cli.py /path/to/books --device x3 --preset full --workers 8
+
+# Using module syntax or installed binary
+python -m epubkit /path/to/books
+```
+
+### CLI Options
+
+- `paths`: Input file(s), directory, or glob pattern to optimize.
+- `-o, --output-dir`: Destination folder (defaults to `<input_dir>/optimized`).
+- `-p, --preset {quick, full}`: Optimization preset profile (`quick` is default).
+- `-d, --device {x4, x3}`: Target E-ink hardware display profile (`x4` is default).
+- `-w, --workers`: Number of concurrent worker processes (defaults to available CPU cores).
+- `--no-recursive`: Disable scanning subdirectories recursively.
+- `--no-overwrite`: Skip optimization if output file already exists.
+- `-q, --quality`: Output JPEG image quality (1-100, default: 70).
+- `--light-novel`: Enable Light Novel mode (rotate/split landscape images).
+- `-v, --verbose`: Display detailed per-file transformation reports.
+
+## Web Usage
 
 1. **Drop** one or more EPUB files onto the upload zone
 2. **Edit** title/author if needed (auto-detected from metadata)

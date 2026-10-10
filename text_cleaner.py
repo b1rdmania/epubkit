@@ -11,6 +11,12 @@ from lxml import etree
 
 from html_cleaner import recovery_parser
 
+try:
+    import epubkit_rs
+    HAVE_RUST = True
+except ImportError:
+    HAVE_RUST = False
+
 
 @dataclass
 class TextCleanReport:
@@ -215,18 +221,31 @@ def clean_text_content(xhtml_bytes: bytes, options: TextCleanOptions = None) -> 
         nonlocal report
         original = text
 
-        if options.fix_whitespace:
-            text, n = _fix_whitespace(text)
-            report.double_spaces_fixed += n
+        if HAVE_RUST and (options.fix_whitespace or options.fix_ocr or options.fix_encoding):
+            text, ds, ocr, q, moj, _ = epubkit_rs.clean_text_fast(
+                text,
+                bool(options.normalize_quotes and options.fix_ocr),
+                bool(options.fix_whitespace),
+                bool(options.fix_ocr),
+                bool(options.fix_encoding),
+            )
+            report.double_spaces_fixed += ds
+            report.ocr_ligatures_fixed += ocr
+            report.smart_quotes_normalized += q
+            report.encoding_issues_fixed += moj
+        else:
+            if options.fix_whitespace:
+                text, n = _fix_whitespace(text)
+                report.double_spaces_fixed += n
 
-        if options.fix_ocr:
-            text, lig_n, quote_n = _fix_ocr_artifacts(text, options.normalize_quotes)
-            report.ocr_ligatures_fixed += lig_n
-            report.smart_quotes_normalized += quote_n
+            if options.fix_ocr:
+                text, lig_n, quote_n = _fix_ocr_artifacts(text, options.normalize_quotes)
+                report.ocr_ligatures_fixed += lig_n
+                report.smart_quotes_normalized += quote_n
 
-        if options.fix_encoding:
-            text, n = _fix_mojibake(text)
-            report.encoding_issues_fixed += n
+            if options.fix_encoding:
+                text, n = _fix_mojibake(text)
+                report.encoding_issues_fixed += n
 
         if options.fix_punctuation:
             text, n = _fix_punctuation(text)

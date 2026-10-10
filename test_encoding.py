@@ -1,5 +1,6 @@
 """Regression tests for the UTF-8 handling reported in issue #1."""
 
+import pytest
 from lxml import etree
 
 from html_cleaner import (
@@ -9,7 +10,7 @@ from html_cleaner import (
     normalize_whitespace,
     collect_used_selectors,
 )
-from text_cleaner import clean_text_content, TextCleanOptions, _fix_mojibake
+from text_cleaner import clean_text_content, TextCleanOptions, _fix_mojibake, _fix_whitespace
 
 GERMAN = 'Während ihre Schwester die Lehre als Verkäuferin abgebrochen hatte'
 QUOTED = '»Wie geht’s Mutter übrigens?«'
@@ -89,3 +90,65 @@ def test_mojibake_table_repairs_smart_quotes():
 def test_mojibake_table_repairs_umlauts_and_sharp_s():
     fixed, _ = _fix_mojibake(MOJI_UMLAUT)
     assert fixed == 'Verkäuferin Kopfhörer Straße'
+
+
+def test_text_cleaning_parity_punctuation_spacing_and_counts():
+    """Rust cleaner matches Python whitespace/punctuation output and counts."""
+    try:
+        import epubkit_rs
+    except ImportError:
+        pytest.skip("epubkit_rs extension not available")
+
+    raw = "Hello   world  , this  is  a test  !  Multiple   spaces\t\tand   tabs ."
+    # Python pure passes
+    py_res, py_ws_cnt = _fix_whitespace(raw)
+    assert py_res == "Hello world, this is a test! Multiple spaces and tabs."
+    assert py_ws_cnt == 12
+
+    # Rust fast cleaner
+    rs_res, rs_ds, rs_ocr, rs_q, rs_moj, rs_tot = epubkit_rs.clean_text_fast(
+        raw, False, True, False, False
+    )
+    assert rs_res == py_res
+    assert rs_ds == py_ws_cnt
+    assert rs_tot == py_ws_cnt
+
+
+def test_text_cleaning_parity_mojibake_and_quotes():
+    """Rust cleaner matches expected mojibake/quote/OCR reconstruction."""
+    try:
+        import epubkit_rs
+    except ImportError:
+        pytest.skip("epubkit_rs extension not available")
+
+    # In Python, mojibake runs AFTER OCR/quotes, preserving reconstructed smart quotes
+    # \u00e2\u0080\u0099 is right single quote, \u00e2\u0080\u009c is left double quote, \u00e2\u0080\u009d is right double quote
+    text = "It\u00e2\u0080\u0099s \u00e2\u0080\u009cfine\u00e2\u0080\u009d\u00a0\ufb01sh"
+    
+    # Fast Rust pass with all enabled
+    rs_res, rs_ds, rs_ocr, rs_q, rs_moj, rs_tot = epubkit_rs.clean_text_fast(
+        text, True, True, True, True
+    )
+    # The non-breaking space is normalized to ' ', \ufb01 is 'fi', mojibake quotes become ’ and “ ”
+    assert rs_res == "It’s “fine” fish"
+    assert rs_ocr == 1  # fi
+    assert rs_q == 1    # \u00a0 -> ' '
+    assert rs_moj == 3  # \u00e2\u0080\u0099, \u00e2\u0080\u009c, \u00e2\u0080\u009d
+
+
+def test_text_cleaning_parity_fix_ocr_false():
+    """Rust cleaner is a no-op for quotes/ligatures when fix_ocr is off."""
+    try:
+        import epubkit_rs
+    except ImportError:
+        pytest.skip("epubkit_rs extension not available")
+
+    # When fix_ocr is False, quote normalization is disabled even if normalize_quotes is True
+    text = "‘Single’ and “Double” \ufb01"
+    rs_res, rs_ds, rs_ocr, rs_q, rs_moj, rs_tot = epubkit_rs.clean_text_fast(
+        text, True, False, False, False
+    )
+    assert rs_res == text  # Unchanged
+    assert rs_ocr == 0
+    assert rs_q == 0
+
