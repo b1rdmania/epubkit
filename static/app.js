@@ -13,6 +13,48 @@ const downloadAllBtn = document.getElementById('download-all-btn');
 const filenameTemplateRow = document.getElementById('filename-template-row');
 const filenameTemplate = document.getElementById('opt-filename-template');
 
+// ==================== Engine ====================
+// The Python pipeline runs in a Web Worker (Pyodide). Books never leave this device.
+
+const engine = new Worker('static/worker.js', { type: 'module' });
+const pending = {};
+let nextRequestId = 0;
+
+engine.onmessage = (event) => {
+    const { id, result, error, progress } = event.data;
+    const req = pending[id];
+    if (!req) return;
+    if (progress) {
+        if (req.onProgress) req.onProgress(progress);
+        return;
+    }
+    delete pending[id];
+    if (error) req.reject(new Error(error));
+    else req.resolve(result);
+};
+
+function callEngine(type, payload = {}, onProgress = null) {
+    return new Promise((resolve, reject) => {
+        const id = ++nextRequestId;
+        pending[id] = { resolve, reject, onProgress };
+        engine.postMessage({ id, type, payload });
+    });
+}
+
+// Start loading Python while the reader picks files.
+const engineReady = callEngine('init');
+
+function saveBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 let uploadedFiles = []; // {task_id, filename, metadata, file_size}
 let selectedDevice = 'x4'; // 'x4' (480x800) or 'x3' (528x792), both 4-level gray
 let selectedFilenameFormat = 'author-title';
@@ -45,21 +87,22 @@ async function handleFiles(files) {
     const epubFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.epub'));
     if (epubFiles.length === 0) return;
 
-    const formData = new FormData();
-    epubFiles.forEach(f => formData.append('files', f));
-
     // Show uploading state
     const uploadContent = uploadZone.querySelector('.upload-content');
     if (uploadContent) {
         uploadContent.innerHTML = `
             <div class="upload-spinner"></div>
-            <p class="upload-label">Uploading${epubFiles.length > 1 ? ` ${epubFiles.length} files` : ''}...</p>
+            <p class="upload-label">Reading${epubFiles.length > 1 ? ` ${epubFiles.length} files` : ''}...</p>
+            <p class="upload-hint">First visit loads the optimiser (about 15 MB), then it is cached</p>
         `;
     }
 
     try {
-        const response = await fetch('/upload', { method: 'POST', body: formData });
-        const data = await response.json();
+        await engineReady;
+        const data = { files: [] };
+        for (const f of epubFiles) {
+            data.files.push(await callEngine('inspect', { file: f }));
+        }
 
         data.files.forEach(file => {
             if (file.task_id) {
@@ -70,7 +113,7 @@ async function handleFiles(files) {
         renderFileList(data.files);
         optionsPanel.hidden = uploadedFiles.length === 0;
     } catch (err) {
-        uploadZone.innerHTML = `<div class="upload-content"><p class="upload-label" style="color:var(--error)">Upload failed: ${err.message}</p></div>`;
+        uploadZone.innerHTML = `<div class="upload-content"><p class="upload-label" style="color:var(--error)">Could not read the file: ${escapeHtml(err.message)}</p></div>`;
     }
 
     // Reset upload zone
@@ -134,6 +177,7 @@ function renderFileList(files) {
 }
 
 function removeFile(taskId, btn) {
+    callEngine('remove', { task_id: taskId });
     uploadedFiles = uploadedFiles.filter(f => f.task_id !== taskId);
     const card = btn.closest('.file-card');
     card.style.opacity = '0';
@@ -274,7 +318,7 @@ async function startProcessing() {
         const editAuthor = authorInput ? authorInput.value : '';
 
         try {
-            const report = await processFile(file.task_id, options, editTitle, editAuthor);
+            const report = await processFile(file.task_id, file.filename, options, editTitle, editAuthor);
             completedIds.push({ task_id: file.task_id, report });
         } catch (err) {
             completedIds.push({ task_id: file.task_id, report: { success: false, error: err.message } });
@@ -335,49 +379,29 @@ function getOptions() {
     };
 }
 
-function processFile(taskId, options, editTitle, editAuthor) {
-    return new Promise((resolve, reject) => {
-        const params = new URLSearchParams({
-            device: options.device,
-            grayscale: options.grayscale,
-            contrast: options.contrast,
-            quality: options.quality,
-            remove_fonts: options.remove_fonts,
-            remove_css: options.remove_css,
-            light_novel: options.light_novel,
-            generate_cover: options.generate_cover,
-            clean_metadata: options.clean_metadata,
-            text_cleanup: options.text_cleanup,
-            edit_title: editTitle,
-            edit_author: editAuthor,
-            filename_format: options.filename_format,
-            filename_template: options.filename_template,
-        });
+async function processFile(taskId, filename, options, editTitle, editAuthor) {
+    const bar = document.getElementById(`bar-${taskId}`);
+    const msg = document.getElementById(`msg-${taskId}`);
+    const params = { ...options, edit_title: editTitle, edit_author: editAuthor };
 
-        const eventSource = new EventSource(`/process/${taskId}?${params}`);
-        const bar = document.getElementById(`bar-${taskId}`);
-        const msg = document.getElementById(`msg-${taskId}`);
+    const onProgress = ({ percent, message }) => {
+        if (bar) bar.style.width = `${percent}%`;
+        if (msg) msg.textContent = message;
+    };
 
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (bar) bar.style.width = `${data.percent}%`;
-            if (msg) msg.textContent = data.message;
-
-            if (data.status === 'done' || data.status === 'error') {
-                eventSource.close();
-                if (bar) bar.classList.add(data.status === 'done' ? 'complete' : 'error');
-                resolve(data.report || data);
-            }
-        };
-
-        eventSource.onerror = () => {
-            eventSource.close();
-            if (bar) bar.classList.add('error');
-            if (msg) msg.textContent = 'Connection error';
-            reject(new Error('SSE connection failed'));
-        };
-    });
+    try {
+        const report = await callEngine('process', { task_id: taskId, filename, params }, onProgress);
+        if (bar) {
+            bar.style.width = '100%';
+            bar.classList.add(report.success ? 'complete' : 'error');
+        }
+        if (msg) msg.textContent = report.success ? 'Complete' : `Error: ${report.error}`;
+        return report;
+    } catch (err) {
+        if (bar) bar.classList.add('error');
+        if (msg) msg.textContent = `Error: ${err.message}`;
+        throw err;
+    }
 }
 
 // ==================== Results ====================
@@ -407,10 +431,10 @@ function showResults(completed) {
                     <span class="size-original">${formatBytes(report.original_size)}</span>
                     <span class="size-arrow">&rarr;</span>
                     <span class="size-new">${formatBytes(report.optimized_size)}</span>
-                    <span class="size-reduction">&minus;${reduction}%</span>
+                    <span class="size-reduction">${reduction >= 0 ? '&minus;' + reduction : '+' + Math.abs(reduction).toFixed(1)}%</span>
                 </div>
                 <div class="result-summary">${escapeHtml(report.summary)}</div>
-                <a href="/download/${task_id}" class="download-btn" download>
+                <a href="#" class="download-btn" data-task="${task_id}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
@@ -428,14 +452,24 @@ function showResults(completed) {
             `;
         }
 
+        const link = card.querySelector('.download-btn');
+        if (link) {
+            link.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const { blob, filename } = await callEngine('download', { task_id });
+                saveBlob(blob, filename);
+            });
+        }
+
         resultsItems.appendChild(card);
     });
 
     // Show Download All button for batch
     if (successIds.length > 1) {
         downloadAllBtn.hidden = false;
-        downloadAllBtn.onclick = () => {
-            window.location.href = `/download-all?task_ids=${successIds.join(',')}`;
+        downloadAllBtn.onclick = async () => {
+            const { blob, filename } = await callEngine('downloadAll', { task_ids: successIds });
+            saveBlob(blob, filename);
         };
     } else {
         downloadAllBtn.hidden = true;

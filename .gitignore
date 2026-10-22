@@ -9,3 +9,4 @@ build/
 .venv/
 venv/
 *.epub
+.wrangler/

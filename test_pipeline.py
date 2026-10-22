@@ -109,21 +109,28 @@ def test_pipeline_keeps_text_intact():
     assert 'Ã' not in chapter
 
 
-def test_upload_endpoint_accepts_multipart():
-    pytest.importorskip('httpx', reason='TestClient needs httpx')
-    from fastapi.testclient import TestClient
-    import app as app_module
+def test_web_api_inspects_and_processes():
+    import web_api
 
     work = tempfile.mkdtemp()
     src = os.path.join(work, 'in.epub')
     build_epub(src)
 
-    client = TestClient(app_module.app)
-    with open(src, 'rb') as fh:
-        response = client.post(
-            '/upload',
-            files={'files': ('Der Verkäufer.epub', fh, 'application/epub+zip')})
+    info = web_api.inspect_upload(src, 'Der Verkäufer.epub', os.path.getsize(src))
+    assert info['error'] is None
+    assert info['metadata']['title'] == 'Der Verkäufer'
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload['files'][0]['metadata']['title'] == 'Der Verkäufer'
+    seen = []
+    dst = os.path.join(work, 'out.epub')
+    report = web_api.run_process(src, dst, 'Der Verkäufer.epub', {'device': 'x4'},
+                                 lambda pct, msg: seen.append(pct))
+    assert report['success'], report['error']
+    assert os.path.exists(dst)
+    assert seen and max(seen) == 100
+
+
+def test_web_api_rejects_bad_options():
+    import web_api
+    assert web_api.validate_options({'device': 'kindle'})
+    assert web_api.validate_options({'filename_format': 'custom', 'filename_template': ' '})
+    assert web_api.validate_options({}) == ''
