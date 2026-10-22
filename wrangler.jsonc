@@ -1,0 +1,12 @@
+{
+  // Static site: the optimiser runs in the reader's browser, so there is no server code.
+  // Deploy with: ./build.sh && wrangler deploy
+  "name": "epubkit",
+  "compatibility_date": "2026-10-01",
+  "account_id": "ff7e84841bce6f90ee9479e0cb31b2ca",
+  "assets": { "directory": "./dist" },
+  "routes": [
+    { "pattern": "epubkit.ink", "custom_domain": true },
+    { "pattern": "www.epubkit.ink", "custom_domain": true }
+  ]
+}

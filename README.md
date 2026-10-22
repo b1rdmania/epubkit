@@ -2,6 +2,8 @@
 
 A web-based EPUB optimizer for e-ink readers. Drop in any EPUB and get back a clean, optimized file ready for your device.
 
+The optimizer runs in your browser. Your books do not leave your device.
+
 Originally built for the [Xteink X4](https://xteink.com/) (480x800 portrait e-ink display, 4-level grayscale, SSD1677 controller, ESP32-C3). Now also supports the smaller [Xteink X3](https://www.xteink.com/products/xteink-x3) (528x792 display, same controller) via a device toggle, and works with any Xteink reader or e-ink device that supports EPUB.
 
 ## Processing pipeline
@@ -38,7 +40,7 @@ epubkit runs a 20-step pipeline on every EPUB:
 3. **Pick your device**: X4 or X3 (sets screen size and grayscale depth)
 4. **Pick a preset**: Quick (images + text), Full (device-optimized), or Custom
 5. **Choose an output filename**: original, title/author presets, title only, or a custom template
-6. **Click Optimize** and watch real-time progress via SSE streaming
+6. **Click Optimize** and watch the progress
 7. **Download** the optimized EPUB — ready to transfer to your reader
 
 Custom filename templates support `{title}`, `{author}`, `{year}`, `{series}`, `{series_index}`, `{language}`, and `{original}` placeholders. Invalid filename characters are sanitized automatically.
@@ -94,11 +96,33 @@ Scans all XHTML text nodes (skipping `<script>`, `<style>`, `<pre>`, `<code>`):
 
 ## Tech stack
 
-- **[FastAPI](https://fastapi.tiangolo.com/)** — async web framework
+- **[Pyodide](https://pyodide.org/)** — runs the Python pipeline in the browser, in a Web Worker
 - **[Pillow](https://python-pillow.org/)** — image processing (4-level quantization, autocontrast)
 - **[lxml](https://lxml.de/)** — XML/HTML parsing and repair
 - **[cssutils](https://cssutils.readthedocs.io/)** — CSS parsing and cleanup
-- **Server-Sent Events** — real-time progress streaming
+- **Cloudflare Workers static assets** — hosting. There is no server code.
+
+## Run it locally
+
+```sh
+./build.sh
+python3 -m http.server 8000 --directory dist
+```
+
+Then open http://localhost:8000. To run the tests on desktop Python:
+
+```sh
+pip install -r requirements.txt pytest
+pytest
+```
+
+## Deploy
+
+```sh
+./build.sh && wrangler deploy
+```
+
+`build.sh` copies the page, the static files and the Python modules into `dist/`. `wrangler.jsonc` serves `dist/` on epubkit.ink.
 
 ## DRM note
 
